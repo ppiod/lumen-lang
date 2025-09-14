@@ -1,0 +1,59 @@
+// ===================================
+// Advanced Example: File Processor Tool
+// ===================================
+// This example simulates a command-line tool that reads a file,
+// transforms its content, and writes it to a new file,
+// showcasing robust error handling with the 'Result' type and the '?' operator.
+
+use fs;
+use string;
+
+// This function contains the core logic.
+// It returns a Result, so we can use the '?' operator inside it.
+let processFile = fn(inPath: String, outPath: String) -> Result<Null, String> {
+  // If readFile fails, '?' will stop execution here and return the Err.
+  // If it succeeds, it unwraps the value.
+  let content = fs.readFile(inPath)?;
+
+  let processedContent = content
+    |> string.trim()
+    |> string.toUpper();
+
+  // The same error handling applies to writeFile.
+  fs.writeFile(outPath, processedContent)?;
+
+  // If all operations succeed, return Ok.
+  Ok(NULL)
+};
+
+// The main function orchestrates the tool's execution.
+let main = fn() -> Result<Null, String> {
+  // 1. Setup a temporary file for the successful case.
+  fs.writeFile("./input.txt", "  hello from a file!  ")?;
+
+  // 2. Test the successful execution path.
+  writeln("Attempting to process a valid file...");
+  match processFile("./input.txt", "./output.txt") {
+    Ok(_) => writeln("Success! File has been processed."),
+    Err(msg) => writeln("This should not happen. Error:", msg)
+  }
+
+  // 3. Test the error handling path with a non-existent file.
+  writeln("\nAttempting to process a non-existent file...");
+  match processFile("./non-existent.txt", "./output.txt") {
+    Ok(_) => writeln("This should not happen either."),
+    Err(msg) => writeln("Successfully caught expected error:", msg)
+  }
+
+  // 4. Clean up the created files.
+  fs.deleteFile("./input.txt")?;
+  fs.deleteFile("./output.txt")?;
+
+  Ok(NULL)
+};
+
+// Run the main logic and handle any final errors (e.g., cleanup failing).
+match main() {
+  Ok(_) => writeln("\nCleanup complete. Example finished."),
+  Err(msg) => writeln("An unexpected error occurred during setup or cleanup:", msg)
+}

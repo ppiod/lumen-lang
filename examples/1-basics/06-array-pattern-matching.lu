@@ -1,0 +1,22 @@
+// ===================================
+// Array Pattern Matching
+// ===================================
+let numbers: Array<Integer> = [1, 2, 3, 4, 5];
+
+let describeList = fn(list: Array<Integer>) -> String {
+  match list {
+    [] => "The list is empty.",
+    [head, ...tail] => strFormat("Head is {?} and the rest is {?}", head, tail),
+    _ => "This case will not be reached for arrays."
+  }
+};
+
+let sum = fn(list: Array<Integer>) -> Integer {
+    match list {
+        [] => 0,
+        [head, ...tail] => head + sum(tail)
+    }
+};
+
+writeln(describeList(numbers)); // "Head is 1 and the rest is [2, 3, 4, 5]"
+writeln("Sum of the list:", sum(numbers)); // 15

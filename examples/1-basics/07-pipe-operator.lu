@@ -1,0 +1,24 @@
+// ===================================
+// The Pipe Operator
+// ===================================
+use string;
+
+let double = fn(n: Integer) -> Integer: n * 2;
+let addFive = fn(n: Integer) -> Integer: n + 5;
+
+// Without the pipe operator, calls are nested and read inside-out.
+let nestedResult = addFive(double(10)); // addFive(20) -> 25
+writeln("Result without pipe:", nestedResult);
+
+// With the pipe operator, the flow is linear and easier to read.
+// The value `10` is passed as the first argument to `double`,
+// and its result is then passed to `addFive`.
+let pipedResult = 10 |> double |> addFive;
+writeln("Result with pipe:", pipedResult); // 25
+
+// It's especially useful with the string library.
+let message = "  lumen  "
+  |> string.trim         // "lumen"
+  |> string.toUpper      // "LUMEN"
+  |> (s) => s + " IS GREAT!"
+  |> writeln // "LUMEN IS GREAT!"

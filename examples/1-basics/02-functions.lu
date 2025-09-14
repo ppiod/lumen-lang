@@ -1,0 +1,25 @@
+// ===================================
+// 1. Named Functions
+// ===================================
+// Functions are declared with 'fn'. Type annotations are mandatory.
+let add = fn(a: Integer, b: Integer) -> Integer {
+  // The last expression in a block is the implicit return.
+  a + b
+};
+
+writeln("Result of add(10, 20) is", add(10, 20));
+
+// ===================================
+// 2. Higher-Order Functions
+// ===================================
+// Functions can receive other functions as arguments.
+// Here, 'map' and 'filter' are native HOFs.
+
+let numbers: Array<Integer> = [1, 2, 3, 4, 5, 6];
+
+// Anonymous functions (lambdas) are created with the `(param) => ...` syntax.
+let doubled = map(numbers, (n) => n * 2);
+let evens = filter(numbers, (n) => n % 2 == 0);
+
+writeln("Doubled numbers:", doubled);   // Output: [2, 4, 6, 8, 10, 12]
+writeln("Only even numbers:", evens); // Output: [2, 4, 6]

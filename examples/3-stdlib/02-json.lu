@@ -1,0 +1,18 @@
+// ===================================
+// JSON Serialization
+// ===================================
+use json (stringify);
+
+record User(name: String, age: Integer, isActive: Boolean)
+
+let users: Array<User> = [
+  User("Alice", 30, true),
+  User("Bob", 25, false),
+  User("Jhon", 20, true)
+];
+
+// The stringify function returns a Result.
+match stringify(users) {
+  Ok(jsonString) => writeln(jsonString),
+  Err(msg) => writeln("JSON Error:", msg)
+}

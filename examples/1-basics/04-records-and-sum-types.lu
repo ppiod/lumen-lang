@@ -1,0 +1,29 @@
+// ===================================
+// 1. Records
+// ===================================
+record User(name: String, age: Integer)
+
+let userA = User("Alice", 30);
+
+writeln("User's name:", userA.name);
+writeln("User's age:", userA.age);
+
+// ===================================
+// 2. Sum Types
+// ===================================
+type WebEvent =
+  | PageLoad()
+  | Click(Integer, Integer);
+
+let describeEvent = fn(event: WebEvent) -> String {
+  match event {
+    PageLoad() => "The page has loaded.",
+    Click(x, y) => strFormat("A click occurred at coordinates: {?}, {?}", x, y)
+  }
+};
+
+let eventA = PageLoad();
+let eventB = Click(150, 250);
+
+writeln(describeEvent(eventA));
+writeln(describeEvent(eventB));

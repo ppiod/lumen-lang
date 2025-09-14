@@ -1,0 +1,39 @@
+// ===================================
+// 1. Variables and Mutability
+// ===================================
+
+// By default, variables in Lumen are immutable.
+// This helps prevent bugs by making the code more predictable.
+let message: String = "Hello, Lumen!";
+
+// The line below would cause a compilation error, as 'message' cannot be changed.
+// message = "Something else";
+
+// To allow mutation, the variable must be declared as mutable with 'let mut'.
+let mut counter: Integer = 0;
+counter += 1; // This is valid.
+
+writeln("Immutable message:", message);
+writeln("Mutable counter:", counter);
+
+
+// ===================================
+// 2. Data Types
+// ===================================
+
+// -- Primitive Types --
+let myInteger: Integer = 42;
+let myDouble: Double = 3.14159;
+let myBoolean: Boolean = true;
+let myString: String = "This is a text.";
+
+// -- Collection Types --
+
+// Arrays are lists of elements of the same type.
+let names: Array<String> = ["Ana", "Bia", "Clara"];
+
+// Hashes (or maps) are collections of key-value pairs.
+let scores: Hash<String, Integer> = { "Ana": 10, "Bia": 9, "Clara": 10 };
+
+writeln("\nAn Array of names:", names);
+writeln("A score from the Hash:", scores["Ana"]);

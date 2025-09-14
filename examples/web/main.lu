@@ -1,0 +1,26 @@
+use net.http (get, post, listen, json, Response);
+use string;
+use examples.web.db (getUser, getAllUsers);
+use examples.web.services (createUser);
+
+get("/", (req, params) => Response(200, "Welcome to the API!", {}));
+get("/users", (req, params) => json(getAllUsers()));
+
+get("/users/:id", (req, params) => {
+  let userId = params["id"];
+  match getUser(userId) {
+    Ok(user) => json(user),
+    Err(_) => Response(404, strFormat("User with ID {?} not found.", userId), {})
+  }
+});
+
+post("/users", (req, params) => {
+  match createUser(req.body) {
+    Ok(successResponse) => successResponse,
+    Err(errorResponse) => errorResponse
+  }
+});
+
+listen(8080, () => {
+  writeln("Server is running at http://localhost:8080");
+});

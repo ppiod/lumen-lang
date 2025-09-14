@@ -1,0 +1,18 @@
+// ===================================
+// HTTP Server with Route Parameters
+// ===================================
+use net.http (Response, get, listen);
+
+// Define a route with a dynamic parameter called 'name'.
+get("/users/:name", (req, params) => {
+  // Access the parameter directly. This returns a String or NULL.
+  let userName = params["name"];
+
+  Response(200, strFormat("Hello, {?}! Welcome to the server.", userName), {})
+});
+
+// Start listening for requests on port 8080.
+listen(8080, () => {
+  writeln("Server is running at http://localhost:8080");
+  writeln("Try accessing http://localhost:8080/users/Piod");
+});

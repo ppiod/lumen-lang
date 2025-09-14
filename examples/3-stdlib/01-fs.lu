@@ -1,0 +1,31 @@
+// ===================================
+// File System Operations
+// ===================================
+use fs;
+
+let filePath = "./test-file.txt";
+let content = "Hello from the Lumen standard library!";
+
+// Write a file, handling potential errors.
+match fs.writeFile(filePath, content) {
+  Ok(_) => writeln("File written successfully."),
+  Err(msg) => writeln("Error writing file:", msg)
+}
+
+// Read the file and print its content.
+match fs.readFile(filePath) {
+  Ok(fileContent) => writeln("File content:", fileContent),
+  Err(msg) => writeln("Error reading file:", msg)
+}
+
+// Check if the file exists.
+match fs.exists(filePath) {
+  Ok(exists) => writeln("Does the file exist?", exists), // true
+  Err(msg) => writeln("Error checking file:", msg)
+}
+
+// Clean up by deleting the file.
+match fs.deleteFile(filePath) {
+  Ok(_) => writeln("File deleted successfully."),
+  Err(msg) => writeln("Error deleting file:", msg)
+}

@@ -1,0 +1,34 @@
+// ===================================
+// 1. Records
+// ===================================
+// Records are used to group related data with named fields.
+// They are similar to 'structs' in other languages.
+record Point(x: Double, y: Double)
+record Line(start: Point, end: Point)
+
+let p1 = Point(10.0, 20.0);
+let p2 = Point(50.0, 100.5);
+let myLine = Line(p1, p2);
+
+writeln("The line starts at x =", myLine.start.x);
+
+// ===================================
+// 2. Sum Types
+// ===================================
+// Sum Types allow a type to have one of several possible "shapes".
+// It's a very powerful way to model the state of an application.
+type Shape =
+  | Circle(Integer)
+  | Rectangle(Integer, Integer);
+
+// Functions can use 'match' to handle each variant of the Sum Type.
+let getArea = fn(shape: Shape) -> Integer {
+  match shape {
+    Circle(r) => 3 * r * r, // We use 3 as an approximation of PI
+    Rectangle(w, h) => w * h
+  }
+};
+
+let myCircle = Circle(10);
+let circleArea = getArea(myCircle);
+writeln("The area of the circle is:", circleArea); // Output: 300

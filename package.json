@@ -1,0 +1,24 @@
+{
+  "name": "lumen",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "devDependencies": {
+    "typescript": "^5.9.2",
+    "@eslint/js": "^9.35.0",
+    "eslint": "^9.35.0",
+    "globals": "^16.4.0",
+    "jiti": "^2.5.1",
+    "prettier": "^3.6.2",
+    "typescript-eslint": "^8.43.0"
+  },
+  "scripts": {
+    "dev": "bun run .",
+    "build:exe:win": "bun build . --compile --minify --sourcemap --target=bun-windows-x64 --outfile ./bin/lumen.exe",
+    "build:exe:linux": "bun build . --compile --minify --sourcemap --target=bun-linux-x64 --outfile ./bin/lumen",
+    "lint": "npx prettier --write ."
+  },
+  "type": "module",
+  "dependencies": {
+    "@types/node": "^24.4.0"
+  }
+}

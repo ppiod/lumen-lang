@@ -1,0 +1,40 @@
+// ===================================
+// 1. Defining a Trait
+// ===================================
+trait Greet {
+  fn sayHello(self) -> String;
+}
+
+// ===================================
+// 2. Defining Types
+// ===================================
+record Dog(name: String)
+record Cat(name: String)
+
+// ===================================
+// 3. Implementing the Trait
+// ===================================
+impl Greet for Dog {
+  fn sayHello(self) -> String {
+    strFormat("{?} says: Woof!", self.name)
+  }
+}
+
+impl Greet for Cat {
+  fn sayHello(self) -> String {
+    strFormat("{?} says: Meow!", self.name)
+  }
+}
+
+// ===================================
+// 4. Using the Trait
+// ===================================
+let makeItGreet = fn<T: Greet>(animal: T) -> Null {
+  animal.sayHello() |> writeln
+};
+
+let myDog = Dog("Rex");
+let myCat = Cat("Misty");
+
+makeItGreet(myDog);
+makeItGreet(myCat);

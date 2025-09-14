@@ -1,0 +1,34 @@
+// ===================================
+// 1. If/Else Expressions
+// ===================================
+let number: Integer = 10;
+
+// 'if' is an expression that returns a value.
+let message = if number > 5 {
+  "Number is greater than 5"
+} else {
+  "Number is 5 or less"
+};
+
+writeln(message);
+
+// ===================================
+// 2. Match Expressions (with Sum Types)
+// ===================================
+type Command =
+  | Success()
+  | Error(String);
+
+let handleCommand = fn(cmd: Command) -> String {
+  match cmd {
+    Success() => "Operation was successful.",
+    Error(msg) => strFormat("An error occurred: {?}", msg),
+    _ => "Unknown command." // Wildcard
+  }
+};
+
+let cmdA = Success();
+let cmdB = Error("File not found");
+
+writeln(handleCommand(cmdA));
+writeln(handleCommand(cmdB));

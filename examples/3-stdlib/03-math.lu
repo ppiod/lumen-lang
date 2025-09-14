@@ -1,0 +1,30 @@
+use math (PI, E, sqrt, abs, pow, randomInt, floor, ceil, round, random);
+
+writeln("--- Constants ---");
+writeln("Value of PI:", PI); // ~3.14159
+writeln("Value of E:", E);   // ~2.71828
+
+writeln("\n--- Basic Functions ---");
+let number = 144.0;
+writeln(strFormat("The square root of {?} is {?}", number, sqrt(number))); // 12.0
+
+let negative = -10.5;
+writeln(strFormat("The absolute value of {?} is {?}", negative, abs(negative))); // 10.5
+
+writeln("\n--- Exponentiation ---");
+let base = 2.0;
+let exponent = 8.0;
+writeln(strFormat("{?} to the power of {?} is {?}", base, exponent, pow(base, exponent))); // 256.0
+
+writeln("\n--- Rounding ---");
+let float_num = 9.55;
+writeln(strFormat("floor({?}) = {?}", float_num, floor(float_num))); // 9.0
+writeln(strFormat("ceil({?}) = {?}", float_num, ceil(float_num)));   // 10.0
+writeln(strFormat("round({?}) = {?}", float_num, round(float_num))); // 10.0
+
+writeln("\n--- Random Functions ---");
+let diceRoll = randomInt(1, 6);
+writeln("A dice roll (1-6):", diceRoll);
+
+let randomFloat = random();
+writeln("Random number between 0 and 1:", randomFloat);

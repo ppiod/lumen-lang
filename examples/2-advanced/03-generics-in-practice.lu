@@ -1,0 +1,58 @@
+// ===================================
+// Generics in Practice
+// ===================================
+// This example combines Records, Traits, and Generic Functions
+// to create a "Container" that can hold and transform values.
+
+// 1. A Generic Record
+// This 'Container' can hold a value of any type 'T'.
+record Container<T>(value: T)
+
+// 2. A Generic Trait
+// Defines a 'map' behavior. Any type that implements this trait
+// can have its internal value transformed from type 'A' to type 'B'.
+trait Mappable<A, B> {
+  fn map(self, f: fn(A) -> B) -> Container<B>;
+}
+
+// 3. Implementation of the Trait for the Record
+// Here, we implement the 'Mappable' trait for our 'Container'.
+// We use generic type parameters in the implementation.
+impl<T, U> Mappable<T, U> for Container<T> {
+  fn map(self, f: fn(T) -> U) -> Container<U> {
+    // Apply the function 'f' to the value inside the container
+    // and return a new Container with the result.
+    Container(f(self.value))
+  }
+}
+
+// 4. A Generic Function with Trait Bound
+// This function accepts any 'container' that is 'Mappable'
+// and a 'mapper' function to apply the transformation.
+let applyMap = fn<C: Mappable<A, B>, A, B>(container: C, mapper: fn(A) -> B) -> Container<B> {
+  container.map(mapper)
+};
+
+// ===================================
+// Testing our Container
+// ===================================
+
+// Create a Container holding an Integer.
+let numberContainer = Container(10);
+
+// Create a function that transforms an Integer into a String.
+let numberToString = fn(n: Integer) -> String {
+  strFormat("The number is {?}", n)
+};
+
+// Use 'applyMap' to transform the container's content.
+let stringContainer = applyMap(numberContainer, numberToString);
+
+writeln("Original container:", numberContainer.value);      // Output: 10
+writeln("Transformed container:", stringContainer.value);  // Output: "The number is 10"
+
+// --- Another example with Strings ---
+let nameContainer = Container("Lumen");
+let excitedContainer = applyMap(nameContainer, (s) => s + "!");
+
+writeln("String container:", excitedContainer.value); // Output: "Lumen!"

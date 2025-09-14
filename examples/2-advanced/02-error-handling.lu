@@ -1,0 +1,74 @@
+// ===================================
+// 1. The `Result` Type
+// ===================================
+// Let's define a function that parses a string into an Integer.
+// It can fail if the string is not a valid number.
+use string;
+
+let parseInt = fn(s: String) -> Result<Integer, String> {
+  // (Note: This is a simplified parser for the example)
+  let trimmed = string.trim(s);
+  // A real implementation would check each character.
+  if trimmed == "0" {
+    Ok(0)
+  } else {
+    let num = string.toInteger(trimmed);
+    if num == 0 { // toInteger returns 0 on failure
+      Err(strFormat("Could not parse '{?}' as an Integer.", s))
+    } else {
+      Ok(num)
+    }
+  }
+};
+
+// Test the parser
+let goodParse = parseInt("  123  ");
+match goodParse {
+  Ok(n) => writeln("Parsed successfully:", n), // Parsed successfully: 123
+  Err(e) => writeln(e)
+}
+
+let badParse = parseInt("not a number");
+match badParse {
+  Err(e) => writeln("Caught expected error:", e), // Caught expected error: Could not parse 'not a number' as an Integer.
+  Ok(_) => writeln("This should not happen")
+}
+
+
+// ===================================
+// 2. Chaining Operations with `?`
+// ===================================
+// Imagine we need to parse two numbers from strings and add them.
+// Writing nested `match` statements would be very clumsy.
+
+// This function returns a `Result`, so we can use `?` inside it.
+let parseAndAdd = fn(aStr: String, bStr: String) -> Result<Integer, String> {
+  // If parseInt(aStr) returns an Err, the function stops here and returns it.
+  // Otherwise, `a` gets the integer value from inside the Ok.
+  let a = parseInt(aStr)?;
+
+  // The same happens here for the second number.
+  let b = parseInt(bStr)?;
+
+  // This code only runs if both parsing steps were successful.
+  writeln(strFormat("Successfully parsed {?} and {?}.", a, b));
+  Ok(a + b)
+};
+
+// --- Test Case 1: Success ---
+writeln("\n--- Testing Success Case ---");
+let total = parseAndAdd(" 100 ", "50");
+match total {
+  Ok(sum) => writeln("The sum is:", sum), // The sum is: 150
+  Err(e) => writeln("This should not happen. Error:", e)
+}
+
+// --- Test Case 2: Failure ---
+// The `?` operator will catch the error from the second argument
+// and immediately exit the `parseAndAdd` function.
+writeln("\n--- Testing Failure Case ---");
+let failedResult = parseAndAdd("25", "invalid");
+match failedResult {
+  Ok(_) => writeln("This should not happen."),
+  Err(e) => writeln("Successfully caught propagated error:", e) // Successfully caught propagated error: Could not parse 'invalid' as an Integer.
+}
