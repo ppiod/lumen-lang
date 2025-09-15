@@ -16,7 +16,7 @@ Lumen is a functional programming language designed for clarity, safety, and exp
 
 Lumen is built on a foundation of powerful concepts inspired by languages like Rust, Elm, and F#.
 
-- **Static Typing**: A strong type system catches errors at interpret time, not runtime.
+- **Static Typing**: A strong type system catches errors at compile time, not runtime.
 - **Immutability by Default**: Encourages a functional style and makes code more predictable. Variables are immutable unless explicitly marked with `mut`.
 - **Rich Type System**: Includes expressive algebraic data types like `Records` (structs) and `Sum Types` (tagged unions) for precise data modeling.
 - **Powerful Pattern Matching**: Exhaustively match against Sum Types, arrays, and other structures for safe and readable control flow.
@@ -31,8 +31,8 @@ To run a Lumen program, use the Lumen executable and provide the path to your en
 
 ```bash
 # Execute a file
-lumen run examples/1-basics/01-variables-and-types.lu
-````
+./bin/lumen examples/1-basics/01-variables-and-types.lu
+```
 
 ### Example: Hello, World\!
 
@@ -50,11 +50,11 @@ main();
 
 Lumen comes with a useful standard library to handle common tasks, including:
 
-  - `fs`: File system operations.
-  - `net.http`: Building HTTP servers.
-  - `json`: Parsing and serializing JSON data.
-  - `math`: Common mathematical functions.
-  - `string`: String manipulation utilities.
+- `fs`: File system operations.
+- `net.http`: Building HTTP servers.
+- `json`: Parsing and serializing JSON data.
+- `math`: Common mathematical functions.
+- `string`: String manipulation utilities.
 
 ## License
 

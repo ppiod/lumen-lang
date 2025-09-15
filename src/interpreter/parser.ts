@@ -45,6 +45,8 @@ import {
   TuplePattern,
   RecordDeclarationStatement,
   type RecordField,
+  WhenExpression,
+  WhenExpressionBranch,
 } from '@syntax/ast.js';
 
 enum Precedence {
@@ -52,6 +54,7 @@ enum Precedence {
   PIPE,
   ASSIGN,
   ANNOTATE,
+  LOGICAL_AND,
   EQUALS,
   LESSGREATER,
   SUM,
@@ -71,8 +74,11 @@ const precedences: Partial<Record<TokenType, Precedence>> = {
   [TokenType.PIPE]: Precedence.PIPE,
   [TokenType.EQ]: Precedence.EQUALS,
   [TokenType.NOT_EQ]: Precedence.EQUALS,
+  [TokenType.AND]: Precedence.LOGICAL_AND,
   [TokenType.LT]: Precedence.LESSGREATER,
   [TokenType.GT]: Precedence.LESSGREATER,
+  [TokenType.GTE]: Precedence.LESSGREATER,
+  [TokenType.LTE]: Precedence.LESSGREATER,
   [TokenType.PLUS]: Precedence.SUM,
   [TokenType.MINUS]: Precedence.SUM,
   [TokenType.SLASH]: Precedence.PRODUCT,
@@ -103,6 +109,7 @@ export class Parser {
     this.prefixParseFns = {};
     this.registerPrefix(TokenType.IDENT, this.parseIdentifier.bind(this));
     this.registerPrefix(TokenType.MATCH, this.parseMatchExpression.bind(this));
+    this.prefixParseFns[TokenType.WHEN] = this.parseWhenExpression.bind(this);
     this.registerPrefix(TokenType.INT, this.parseIntegerLiteral.bind(this));
     this.registerPrefix(TokenType.DOUBLE, this.parseDoubleLiteral.bind(this));
     this.registerPrefix(TokenType.STRING, this.parseStringLiteral.bind(this));
@@ -122,6 +129,7 @@ export class Parser {
     this.registerInfix(TokenType.ASSIGN, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.PLUS_ASSIGN, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.PIPE, this.parsePipeExpression.bind(this));
+    this.registerInfix(TokenType.AND, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.PLUS, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.MINUS, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.SLASH, this.parseInfixExpression.bind(this));
@@ -132,6 +140,8 @@ export class Parser {
     this.registerInfix(TokenType.NOT_EQ, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.LT, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.GT, this.parseInfixExpression.bind(this));
+    this.registerInfix(TokenType.GTE, this.parseInfixExpression.bind(this));
+    this.registerInfix(TokenType.LTE, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.LPAREN, this.parseCallExpression.bind(this));
     this.registerInfix(TokenType.LBRACKET, this.parseIndexExpression.bind(this));
     this.registerInfix(TokenType.DOT, this.parseMemberAccessExpression.bind(this));
@@ -821,6 +831,75 @@ export class Parser {
     }
     if (!this.expectPeek(TokenType.RBRACE)) return undefined;
     return match;
+  }
+
+  private parseWhenExpression(): Expression | undefined {
+    const whenToken = this.curToken;
+
+    if (!this.expectPeek(TokenType.LBRACE)) {
+      return undefined;
+    }
+
+    const branches: WhenExpressionBranch[] = [];
+    let elseBody: Expression | null = null;
+
+    while (!this.peekTokenIs(TokenType.RBRACE) && !this.peekTokenIs(TokenType.EOF)) {
+      this.nextToken();
+
+      if (this.curTokenIs(TokenType.BAR)) {
+        this.nextToken();
+
+        const condition = this.parseExpression(Precedence.ASSIGN);
+        if (!condition) {
+          return undefined;
+        }
+
+        if (!this.expectPeek(TokenType.FAT_ARROW)) {
+          return undefined;
+        }
+        this.nextToken();
+
+        const body = this.parseExpression(Precedence.LOWEST);
+        if (!body) {
+          return undefined;
+        }
+        branches.push(new WhenExpressionBranch(condition, body));
+      } else if (this.curTokenIs(TokenType.ELSE)) {
+        if (elseBody) {
+          this.errors.push('when expression can only have one else branch');
+          return undefined;
+        }
+
+        if (!this.expectPeek(TokenType.FAT_ARROW)) {
+          return undefined;
+        }
+        this.nextToken();
+
+        const parsedElseBody = this.parseExpression(Precedence.LOWEST);
+        if (!parsedElseBody) {
+          return undefined;
+        }
+        elseBody = parsedElseBody;
+      } else {
+        this.errors.push(`unexpected token in when expression: ${this.curToken.literal}`);
+        return undefined;
+      }
+
+      if (this.peekTokenIs(TokenType.COMMA)) {
+        this.nextToken();
+      }
+    }
+
+    if (!this.expectPeek(TokenType.RBRACE)) {
+      return undefined;
+    }
+
+    if (!elseBody) {
+      this.errors.push('when expression must have an else branch');
+      return undefined;
+    }
+
+    return new WhenExpression(whenToken, branches, elseBody);
   }
 
   private parseFunctionLiteral(): Expression | undefined {

@@ -21,15 +21,17 @@ export enum TokenType {
 
   LT = '<',
   GT = '>',
+  GTE = '>=',
+  LTE = '<=',
 
   EQ = '==',
   NOT_EQ = '!=',
+  AND = '&&',
 
   ARROW = '->',
   PIPE = '|>',
   BAR = '|',
   TYPE = 'TYPE',
-  MATCH = 'MATCH',
   FAT_ARROW = '=>',
 
   // Delimiters
@@ -51,6 +53,8 @@ export enum TokenType {
   MUT = 'MUT',
   TRUE = 'TRUE',
   FALSE = 'FALSE',
+  MATCH = 'MATCH',
+  WHEN = 'WHEN',
   IF = 'IF',
   ELSE = 'ELSE',
   RETURN = 'RETURN',
@@ -79,6 +83,7 @@ const keywords: Map<string, TokenType> = new Map([
   ['mut', TokenType.MUT],
   ['type', TokenType.TYPE],
   ['match', TokenType.MATCH],
+  ['when', TokenType.WHEN],
   ['true', TokenType.TRUE],
   ['false', TokenType.FALSE],
   ['if', TokenType.IF],

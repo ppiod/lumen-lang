@@ -1,0 +1,31 @@
+// ===================================
+// When
+// ===================================
+
+
+// Helper function to log a step in a calculation.
+// By using <T>, we make this function generic.
+// It accepts a value of any type 'T' and returns a value of the same type 'T'.
+let trace = fn<T>(description: String, value: T) -> T {
+    strFormat("{?}: {?}.", description, value) |> writeln;
+    value // This is now guaranteed to be the same type as the input.
+};
+
+let factorial = fn(n: Integer) -> Integer {
+  when {
+    | (n <= 1) => 1,
+    else => n * factorial(n - 1)
+  }
+};
+
+writeln("\n--- Tracing the precedence calculation ---");
+
+let result = trace("Step 1: Parentheses", 10 + 2)
+    |> (r) => trace("Step 2: Multiplication", r * 6)
+    |> (r) => trace("Step 3: Division", r / 3)
+    |> (r) => trace("Step 4: Subtraction (with Modulo)", r - (8 % 3))
+    |> (r) => trace("Step 5: Addition (with Multiplication)", r + (factorial(6) * 2));
+
+
+writeln("\n--- Final Result ---");
+writeln(strFormat("The final result is: {?}.", result));

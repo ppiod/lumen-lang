@@ -724,3 +724,25 @@ export class TryExpression implements Expression {
     return `(${this.left.toString()}?)`;
   }
 }
+
+export class WhenExpressionBranch {
+  constructor(
+    public condition: Expression,
+    public body: Expression,
+  ) {}
+}
+
+export class WhenExpression implements Expression {
+  readonly _tag = 'WhenExpression';
+
+  constructor(
+    public token: Token,
+    public branches: WhenExpressionBranch[],
+    public elseBody: Expression,
+  ) {}
+
+  expressionNode(): void {}
+  tokenLiteral(): string {
+    return this.token.literal;
+  }
+}

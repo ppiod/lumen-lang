@@ -59,6 +59,9 @@ export class Lexer {
     const twoCharOperators = new Map<string, TokenType>([
       ['==', TokenType.EQ],
       ['!=', TokenType.NOT_EQ],
+      ['>=', TokenType.GTE],
+      ['<=', TokenType.LTE],
+      ['&&', TokenType.AND],
       ['->', TokenType.ARROW],
       ['|>', TokenType.PIPE],
       ['=>', TokenType.FAT_ARROW],

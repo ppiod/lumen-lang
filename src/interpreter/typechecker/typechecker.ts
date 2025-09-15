@@ -783,6 +783,26 @@ export function check(
   }
 
   if (node instanceof ast.InfixExpression) {
+    if (node.operator === '&&') {
+      const leftType = check(node.left, env, loader, BOOLEAN_TYPE);
+      if (leftType.kind() === TypeKind.ERROR) return leftType;
+      if (!isSameType(leftType, BOOLEAN_TYPE)) {
+        return new ErrorType(
+          `left-hand side of '&&' must be a Boolean, but got ${leftType.toString()}`,
+          node.left,
+        );
+      }
+      const rightType = check(node.right, env, loader, BOOLEAN_TYPE);
+      if (rightType.kind() === TypeKind.ERROR) return rightType;
+      if (!isSameType(rightType, BOOLEAN_TYPE)) {
+        return new ErrorType(
+          `right-hand side of '&&' must be a Boolean, but got ${rightType.toString()}`,
+          node.right,
+        );
+      }
+      return BOOLEAN_TYPE;
+    }
+
     if (node.operator === '|>') {
       const leftType = check(node.left, env, loader);
       if (leftType.kind() === TypeKind.ERROR) {
@@ -916,7 +936,7 @@ export function check(
         }
         return INTEGER_TYPE;
       }
-      if (['<', '>', '==', '!='].includes(node.operator)) {
+      if (['<', '>', '==', '!=', '>=', '<='].includes(node.operator)) {
         return BOOLEAN_TYPE;
       }
     }
@@ -1239,7 +1259,59 @@ export function check(
   }
 
   if (node instanceof ast.MatchExpression) return checkMatchExpression(node, env, loader);
+  if (node instanceof ast.WhenExpression) return checkWhenExpression(node, env, loader);
+
   return new ErrorType(`type checking not implemented for ${node.constructor.name}`, node);
+}
+
+function checkWhenExpression(
+  node: ast.WhenExpression,
+  env: TypeEnvironment,
+  loader: ModuleLoader,
+): LumenType {
+  let firstBranchType: LumenType | undefined = undefined;
+
+  for (const branch of node.branches) {
+    const conditionType = check(branch.condition, env, loader);
+    if (conditionType.kind() === TypeKind.ERROR) {
+      return conditionType;
+    }
+
+    if (!isSameType(conditionType, BOOLEAN_TYPE)) {
+      return new ErrorType(
+        `when branch condition must be a Boolean, but got ${conditionType.toString()}`,
+        branch.condition,
+      );
+    }
+
+    const bodyType = check(branch.body, env, loader);
+    if (bodyType.kind() === TypeKind.ERROR) {
+      return bodyType;
+    }
+
+    if (!firstBranchType) {
+      firstBranchType = bodyType;
+    } else if (!isSameType(firstBranchType, bodyType)) {
+      return new ErrorType(
+        `when branches must have the same type. Expected ${firstBranchType.toString()} but got ${bodyType.toString()}`,
+        branch.body,
+      );
+    }
+  }
+
+  const elseBodyType = check(node.elseBody, env, loader);
+  if (elseBodyType.kind() === TypeKind.ERROR) {
+    return elseBodyType;
+  }
+
+  if (firstBranchType && !isSameType(firstBranchType, elseBodyType)) {
+    return new ErrorType(
+      `when else branch must have the same type as other branches. Expected ${firstBranchType.toString()} but got ${elseBodyType.toString()}`,
+      node.elseBody,
+    );
+  }
+
+  return firstBranchType || elseBodyType;
 }
 
 function checkMatchExpression(

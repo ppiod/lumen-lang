@@ -172,6 +172,10 @@ function evalNumericInfixExpression(
       return nativeBoolToBooleanObject(leftVal < rightVal);
     case '>':
       return nativeBoolToBooleanObject(leftVal > rightVal);
+    case '>=':
+      return nativeBoolToBooleanObject(leftVal >= rightVal);
+    case '<=':
+      return nativeBoolToBooleanObject(leftVal <= rightVal);
     case '==':
       return nativeBoolToBooleanObject(leftVal === rightVal);
     case '!=':
@@ -540,6 +544,15 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
       return env.set(name, new LumenInteger(sum), true);
     }
 
+    if (node.operator === '&&') {
+      const left = Eval(node.left, env, loader);
+      if (left instanceof LumenError) return left;
+      if (!isTruthy(left)) {
+        return left;
+      }
+      return Eval(node.right, env, loader);
+    }
+
     const left = Eval(node.left, env, loader);
     if (left instanceof LumenError) return left;
     const right = Eval(node.right, env, loader);
@@ -651,7 +664,31 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
   if (node instanceof ast.MatchExpression) {
     return evalMatchExpression(node, env, loader);
   }
+
+  if (node instanceof ast.WhenExpression) {
+    return evalWhenExpression(node, env, loader);
+  }
+
   return NULL;
+}
+
+function evalWhenExpression(
+  node: ast.WhenExpression,
+  env: Environment,
+  loader: ModuleLoader,
+): LumenObject {
+  for (const branch of node.branches) {
+    const condition = Eval(branch.condition, env, loader);
+    if (condition instanceof LumenError) {
+      return condition;
+    }
+
+    if (isTruthy(condition)) {
+      return Eval(branch.body, env, loader);
+    }
+  }
+
+  return Eval(node.elseBody, env, loader);
 }
 
 function evalMatchExpression(
