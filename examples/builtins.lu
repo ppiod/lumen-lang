@@ -1,0 +1,124 @@
+// ===================================
+// Lumen Built-in Functions and Types
+// ===================================
+// This file demonstrates all the core functionalities that are globally
+// available in Lumen without needing to import any module.
+
+// ===================================
+// 1. Core Data Types
+// ===================================
+// These are the fundamental building blocks for data.
+let myInt: Integer = 10;
+let myDouble: Double = 3.14;
+let myBool: Boolean = true;
+let myStr: String = "Hello, Lumen!";
+let myNull: Null = NULL; // Represents the absence of a value
+
+writeln("--- Core Data Types ---");
+writeln("Integer: {?}", myInt);
+writeln("Double: {?}", myDouble);
+writeln("Boolean: {?}", myBool);
+writeln("String: {?}", myStr);
+writeln("Null: {?}", myNull);
+
+
+// ===================================
+// 2. I/O Functions (Input/Output)
+// ===================================
+// Functions for printing information to the console.
+
+// writeln: Prints the given arguments to the console, followed by a newline.
+// It also supports string formatting with '{?}'.
+writeln("\n--- I/O Functions ---");
+writeln("This is a line printed by writeln.");
+writeln("Formatted string: The value is {?}.", 42);
+
+// write: Prints the given arguments without a newline at the end.
+write("This is from 'write', ");
+write("so it stays on the same line.\n");
+
+
+// ===================================
+// 3. Array Manipulation Functions
+// ===================================
+let numbers: Array<Integer> = [1, 2, 3, 4, 5];
+writeln("\n--- Array Functions (using list [1, 2, 3, 4, 5]) ---");
+
+// len: Returns the number of elements in an Array or characters in a String.
+// Signature: fn<T>(Array<T> | String) -> Integer
+writeln("Length of the array: {?}", len(numbers)); // 5
+writeln("Length of the string 'Lumen': {?}", len("Lumen")); // 5
+
+// first: Returns the first element of an array, or NULL if the array is empty.
+// Signature: fn<T>(Array<T>) -> T | Null
+let head = first(numbers);
+writeln("First element: {?}", head); // 1
+
+// rest: Returns a new array containing all elements except the first.
+// Returns NULL if the array is empty.
+// Signature: fn<T>(Array<T>) -> Array<T> | Null
+let tail = rest(numbers);
+writeln("Rest of the array: {?}", tail); // [2, 3, 4, 5]
+
+// prepend: Returns a new array by adding an element to the beginning of an existing array.
+// Signature: fn<T>(T, Array<T>) -> Array<T>
+let newList = prepend(0, numbers);
+writeln("Prepending 0 to the array: {?}", newList); // [0, 1, 2, 3, 4, 5]
+
+
+// ===================================
+// 4. Higher-Order Functions for Arrays
+// ===================================
+writeln("\n--- Higher-Order Functions ---");
+// map: Applies a function to every element of an array, returning a new array with the results.
+// Signature: fn<A, B>(Array<A>, fn(A) -> B) -> Array<B>
+let squared = map(numbers, (n) => n * n);
+writeln("Array after map (squared): {?}", squared); // [1, 4, 9, 16, 25]
+
+// filter: Returns a new array containing only the elements that satisfy a predicate function (returns true).
+// Signature: fn<T>(Array<T>, fn(T) -> Boolean) -> Array<T>
+let evens = filter(numbers, (n) => n % 2 == 0);
+writeln("Array after filter (evens only): {?}", evens); // [2, 4]
+
+// reduce: Applies a function against an accumulator and each element in the array to reduce it to a single value.
+// Signature: fn<A, B>(Array<A>, B, fn(B, A) -> B) -> B
+let sum = reduce(numbers, 0, (acc, current) => acc + current);
+writeln("Array after reduce (sum): {?}", sum); // 15
+
+
+// ===================================
+// 5. String and Type Conversion
+// ===================================
+writeln("\n--- String and Type Conversion ---");
+// strFormat: Formats a string by replacing placeholders '{?}' with given values.
+// Signature: fn(String, ...Any) -> String
+let formatted = strFormat("User {?} has {?} points.", "Ryu", 9001);
+writeln("Formatted string: {?}", formatted);
+
+// toString: Returns a string representation of any value (often in a developer-friendly format).
+// Signature: fn(Any) -> String
+let arrayString = toString(numbers);
+writeln("toString applied to an array: {?}", arrayString);
+
+
+// ===================================
+// 6. The Result<T, E> Sum Type
+// ===================================
+// The 'Result' type is a core Sum Type used for error handling. It is globally available.
+// It can be in one of two states:
+//   - Ok(value): Represents a successful operation, containing a value.
+//   - Err(error): Represents a failure, containing an error.
+writeln("\n--- The Result Type ---");
+
+let success: Result<Integer, String> = Ok(100);
+let failure: Result<Integer, String> = Err("Something went wrong!");
+
+let handleResult = fn(res: Result<Integer, String>) {
+    match res {
+        Ok(value) => writeln("Success! Got value: {?}", value),
+        Err(msg) => writeln("Failure! Got error: {?}", msg)
+    }
+};
+
+handleResult(success);
+handleResult(failure);

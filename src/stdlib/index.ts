@@ -6,6 +6,8 @@ import { math } from './math/index.js';
 import { string } from './string/index.js';
 import { fsModule } from './fs/index.js';
 import { hashModule } from './hash/index.js';
+import { datetimeModule } from './datetime/index.js';
+import { ioModule } from './io/index.js';
 
 export interface NativeModule {
   types: Map<string, LumenType>;
@@ -26,4 +28,6 @@ export const stdlib = new Map<string, NativeModule>([
   ['string', string],
   ['fs', fsModule],
   ['hash', hashModule],
+  ['datetime', datetimeModule],
+  ['io', ioModule],
 ]);

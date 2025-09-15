@@ -685,25 +685,25 @@ function evalWhenExpression(
       for (const patternNode of branch.patterns) {
         const patternValue = Eval(patternNode, env, loader);
         if (patternValue instanceof LumenError) return patternValue;
-        
+
         let branchMatches = false;
-        
+
         if (patternValue instanceof LumenBoolean) {
-            if (patternValue.value) {
-                branchMatches = true;
-            }
+          if (patternValue.value) {
+            branchMatches = true;
+          }
         } else {
-            const comparison = evalInfixExpression(
-              '==',
-              subject,
-              patternValue,
-              env,
-              loader,
-              new ast.InfixExpression(patternNode.token, node.subject, '==', patternNode)
-            );
-            if (comparison instanceof LumenBoolean && comparison.value) {
-                branchMatches = true;
-            }
+          const comparison = evalInfixExpression(
+            '==',
+            subject,
+            patternValue,
+            env,
+            loader,
+            new ast.InfixExpression(patternNode.token, node.subject, '==', patternNode),
+          );
+          if (comparison instanceof LumenBoolean && comparison.value) {
+            branchMatches = true;
+          }
         }
 
         if (branchMatches) {

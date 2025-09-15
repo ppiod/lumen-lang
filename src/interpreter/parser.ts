@@ -752,10 +752,16 @@ export class Parser {
 
   private parseIfExpression(): Expression | undefined {
     const token = this.curToken;
+
     this.nextToken();
-    const condition = this.parseExpression(Precedence.LOWEST);
-    if (!condition) return undefined;
-    let consequence: Expression | BlockStatement | undefined = undefined;
+    const condition = this.parseExpression(Precedence.ANNOTATE);
+    if (!condition) {
+      this.errors.push('Expected a condition after "if".');
+      return undefined;
+    }
+
+    let consequence: Expression | BlockStatement | undefined;
+
     if (this.peekTokenIs(TokenType.COLON)) {
       this.nextToken();
       this.nextToken();
@@ -764,12 +770,18 @@ export class Parser {
       this.nextToken();
       consequence = this.parseBlockStatement();
     } else {
+      this.peekError(TokenType.COLON);
       return undefined;
     }
-    if (!consequence) return undefined;
+
+    if (!consequence) {
+      return undefined;
+    }
+
     let alternative: Expression | BlockStatement | undefined = undefined;
     if (this.peekTokenIs(TokenType.ELSE)) {
       this.nextToken();
+
       if (this.peekTokenIs(TokenType.COLON)) {
         this.nextToken();
         this.nextToken();
@@ -781,9 +793,11 @@ export class Parser {
         this.nextToken();
         alternative = this.parseIfExpression();
       } else {
+        this.peekError(TokenType.COLON);
         return undefined;
       }
     }
+
     return new IfExpression(token, condition, consequence, alternative);
   }
 
@@ -838,7 +852,8 @@ export class Parser {
     let subject: Expression | undefined = undefined;
 
     if (this.peekTokenIs(TokenType.LPAREN)) {
-      this.nextToken(); this.nextToken();
+      this.nextToken();
+      this.nextToken();
       subject = this.parseExpression(Precedence.LOWEST);
       if (!this.expectPeek(TokenType.RPAREN)) return undefined;
     }
@@ -852,12 +867,16 @@ export class Parser {
       this.nextToken();
 
       if (this.curTokenIs(TokenType.ELSE)) {
-        if (elseBody) { this.errors.push('when can only have one else branch'); return undefined; }
+        if (elseBody) {
+          this.errors.push('when can only have one else branch');
+          return undefined;
+        }
         if (!this.expectPeek(TokenType.FAT_ARROW)) return undefined;
         this.nextToken();
-        elseBody = this.curTokenIs(TokenType.LBRACE) ? this.parseBlockStatement() : this.parseExpression(Precedence.LOWEST);
+        elseBody = this.curTokenIs(TokenType.LBRACE)
+          ? this.parseBlockStatement()
+          : this.parseExpression(Precedence.LOWEST);
         if (!elseBody) return undefined;
-
       } else if (this.curTokenIs(TokenType.BAR)) {
         this.nextToken();
         const patterns: Expression[] = [];
@@ -875,19 +894,26 @@ export class Parser {
 
         if (!this.expectPeek(TokenType.FAT_ARROW)) return undefined;
         this.nextToken();
-        const body = this.curTokenIs(TokenType.LBRACE) ? this.parseBlockStatement() : this.parseExpression(Precedence.LOWEST);
+        const body = this.curTokenIs(TokenType.LBRACE)
+          ? this.parseBlockStatement()
+          : this.parseExpression(Precedence.LOWEST);
         if (!body) return undefined;
         branches.push(new WhenExpressionBranch(patterns, body));
+      } else {
+        this.errors.push(`unexpected token in when expression: ${this.curToken.literal}`);
+        return undefined;
+      }
 
-      } else { this.errors.push(`unexpected token in when expression: ${this.curToken.literal}`); return undefined; }
-      
       if (this.peekTokenIs(TokenType.COMMA) && !this.peekTokenIs(TokenType.RBRACE)) {
         this.nextToken();
       }
     }
 
     if (!this.expectPeek(TokenType.RBRACE)) return undefined;
-    if (!elseBody) { this.errors.push('when must have an else branch'); return undefined; }
+    if (!elseBody) {
+      this.errors.push('when must have an else branch');
+      return undefined;
+    }
 
     return new WhenExpression(whenToken, subject || null, branches, elseBody!);
   }
@@ -1167,12 +1193,12 @@ export class Parser {
 
     const literalExpr = this.parseExpression(Precedence.LOWEST);
     if (literalExpr) {
-        return literalExpr as Expression;
+      return literalExpr as Expression;
     }
 
     this.errors.push(`Unexpected token in pattern: ${this.curToken.type}`);
     return undefined;
-}
+  }
 
   private parseArrayPattern(): Pattern | undefined {
     const token = this.curToken;

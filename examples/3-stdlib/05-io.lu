@@ -1,0 +1,30 @@
+use io (input, exec);
+
+writeln("--- IO Library Showcase ---");
+
+// --- 1. Using io.input ---
+
+let name = input("What is your name? ");
+
+// to create a dynamic prompt for the input function.
+let command_to_run = input(strFormat("Hello, {?}! What command should I run? (e.g., echo Hello) ", name));
+
+
+// --- 2. Using io.exec ---
+
+writeln("\nRunning command: '{?}'...", command_to_run);
+
+// io.exec returns a Result type, which we can safely handle with 'match'.
+// This prevents the program from crashing if the command fails.
+let result = exec(command_to_run);
+
+match result {
+    Ok(output) => {
+        writeln("\nCommand Output {?}", output);
+    },
+    Err(error_message) => {
+        writeln("\nAn Error Occurred {?}", error_message)
+    }
+}
+
+writeln("\nTest complete!");

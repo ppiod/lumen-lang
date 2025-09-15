@@ -1,0 +1,89 @@
+// This script implements a simple terminal-based racing game between two racers: a Tortoise and a Hare.
+//
+// How it works:
+// 1. A 'Racer' record holds the state for each participant, including their name, distance, speed, and emoji.
+// 2. The main logic is in the 'run_race' function, which is recursive and acts as the game loop.
+// 3. In each "tick" of the loop, the console is cleared, and the current position of each racer is drawn on a track.
+// 4. Each racer's position is updated by adding a random "boost" to their distance, calculated using their speed.
+// 5. The loop continues, with a 200ms pause between frames, until one of the racers crosses the finish line.
+// 6. The first racer to reach the finish line is declared the winner.
+
+use datetime (sleep);
+use math (randomInt);
+use io (exec);
+
+let clear = fn() -> Null {
+    match exec("cls") {
+        Ok(_) => NULL,
+        Err(_) => match exec("clear") {
+            Ok(_) => NULL,
+            Err(_) => NULL
+        }
+    }
+};
+
+record Racer(name: String, distance: Integer, speed: Integer, art: String)
+
+type RaceState =
+  | Running(Racer, Racer)
+  | Finished(Racer);
+
+let repeat_char = fn(char: String, times: Integer) -> String {
+    if times <= 0: "" else: char + repeat_char(char, times - 1)
+};
+
+let draw_track = fn(racer: Racer, finish_line: Integer) -> Null {
+    let current_pos = if racer.distance > finish_line: finish_line else: racer.distance;
+    let track_before = repeat_char("~", current_pos);
+    let track_after = repeat_char(" ", finish_line - current_pos);
+    
+    writeln("{?}:", racer.name);
+    writeln("[{?}{?}{?}]>", track_before, racer.art, track_after);
+    writeln("");
+};
+
+let determine_next_state = fn(racer1: Racer, racer2: Racer, finish_line: Integer) -> RaceState {
+    when {
+        | (racer1.distance >= finish_line) => Finished(racer1),
+        | (racer2.distance >= finish_line) => Finished(racer2),
+        else => {
+            let boost1 = randomInt(1, racer1.speed);
+            let boost2 = randomInt(1, racer2.speed);
+            let next_racer1 = Racer(racer1.name, racer1.distance + boost1, racer1.speed, racer1.art);
+            let next_racer2 = Racer(racer2.name, racer2.distance + boost2, racer2.speed, racer2.art);
+            Running(next_racer1, next_racer2)
+        }
+    }
+};
+
+let run_race = fn(racer1: Racer, racer2: Racer, finish_line: Integer) -> Null {
+    clear();
+    writeln("🏁 THE GREAT EMOJI RACE 🏁");
+    writeln("Finish Line: {?}m\n", finish_line);
+    draw_track(racer1, finish_line);
+    draw_track(racer2, finish_line);
+
+    let next_state = determine_next_state(racer1, racer2, finish_line);
+
+    match next_state {
+        Running(next_r1, next_r2) => {
+            sleep(200);
+            run_race(next_r1, next_r2, finish_line)
+        },
+        Finished(winner) => {
+            clear();
+            writeln("🏁 THE GREAT EMOJI RACE 🏁");
+            writeln("Finish Line: {?}m\n", finish_line);
+            draw_track(racer1, finish_line);
+            draw_track(racer2, finish_line);
+            writeln("\n🎉 {?} wins the race! 🎉", winner.name)
+        }
+    }
+};
+
+let finish_line = 50;
+
+let tortoise = Racer("Tortoise", 0, 8, "🐢");
+let hare     = Racer("Hare",     0, 8, "🐇");
+
+run_race(tortoise, hare, finish_line);

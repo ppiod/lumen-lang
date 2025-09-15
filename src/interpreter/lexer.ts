@@ -124,15 +124,48 @@ export class Lexer {
     }
 
     if (this.ch === '"') {
-      this.readChar();
-      const literal = this.readString();
-      this.readChar();
-      return createToken(TokenType.STRING, literal);
+      if (this.peekChar() === '"' && this.input[this.readPosition + 1] === '"') {
+        const literal = this.readMultiLineString();
+        return createToken(TokenType.STRING, literal);
+      } else {
+        this.readChar();
+        const literal = this.readString();
+        this.readChar();
+        return createToken(TokenType.STRING, literal);
+      }
     }
 
     const illegalToken = createToken(TokenType.ILLEGAL, this.ch);
     this.readChar();
     return illegalToken;
+  }
+
+  private readMultiLineString(): string {
+    this.readChar();
+    this.readChar();
+    this.readChar();
+
+    let out = '';
+    while (true) {
+      if (this.ch === null) {
+        break;
+      }
+      if (this.ch === '"' && this.peekChar() === '"' && this.input[this.readPosition + 1] === '"') {
+        this.readChar();
+        this.readChar();
+        this.readChar();
+        break;
+      }
+
+      if (this.ch === '\n') {
+        this.line++;
+        this.column = 0;
+      }
+
+      out += this.ch;
+      this.readChar();
+    }
+    return out;
   }
 
   private skipWhitespace(): void {

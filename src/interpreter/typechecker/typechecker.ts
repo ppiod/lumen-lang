@@ -996,26 +996,32 @@ export function check(
         `condition of if-expression must be a Boolean, but got ${conditionType.toString()}`,
         node.condition,
       );
+
+    if (!node.alternative) {
+      check(node.consequence, env, loader);
+      return NULL_TYPE;
+    }
+
     const consequenceType = check(node.consequence, env, loader, expectedType);
     if (consequenceType.kind() === TypeKind.ERROR) return consequenceType;
-    if (!node.alternative) return new ErrorType('if-expressions must have an else branch', node);
 
     const alternativeType = check(node.alternative, env, loader, expectedType);
-
     if (alternativeType.kind() === TypeKind.ERROR) return alternativeType;
+
     if (!isSameType(consequenceType, alternativeType))
       return new ErrorType(
         `branches of if-expression must have the same type, but got ${consequenceType.toString()} and ${alternativeType.toString()}`,
         node,
       );
+
     return consequenceType;
   }
-
   if (node instanceof ast.CallExpression) {
     if (node.func instanceof ast.Identifier) {
       const funcName = node.func.value;
       switch (funcName) {
-        case 'writeln': {
+        case 'writeln':
+        case 'write': {
           for (const arg of node.args) {
             const argType = check(arg, env, loader);
             if (argType.kind() === TypeKind.ERROR) return argType;
@@ -1315,14 +1321,14 @@ function checkWhenExpression(
       for (const pattern of branch.patterns) {
         const patternType = check(pattern, env, loader);
         if (patternType.kind() === TypeKind.ERROR) return patternType;
-        
+
         if (patternType.kind() !== TypeKind.BOOLEAN) {
-            if (!isSameType(subjectType, patternType)) {
-                return new ErrorType(
-                    `this pattern has type ${patternType.toString()}, but the subject has type ${subjectType.toString()}. Patterns must either be comparable to the subject or be a boolean condition.`,
-                    pattern,
-                );
-            }
+          if (!isSameType(subjectType, patternType)) {
+            return new ErrorType(
+              `this pattern has type ${patternType.toString()}, but the subject has type ${subjectType.toString()}. Patterns must either be comparable to the subject or be a boolean condition.`,
+              pattern,
+            );
+          }
         }
       }
       const error = processBranch(branch.body);
