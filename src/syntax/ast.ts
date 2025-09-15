@@ -727,7 +727,7 @@ export class TryExpression implements Expression {
 
 export class WhenExpressionBranch {
   constructor(
-    public condition: Expression,
+    public patterns: Expression[],
     public body: Expression,
   ) {}
 }
@@ -737,6 +737,7 @@ export class WhenExpression implements Expression {
 
   constructor(
     public token: Token,
+    public subject: Expression | null,
     public branches: WhenExpressionBranch[],
     public elseBody: Expression,
   ) {}

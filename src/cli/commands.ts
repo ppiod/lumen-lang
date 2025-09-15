@@ -2,6 +2,7 @@ import path from 'path';
 import { ModuleLoader, LumenErrorWithSource } from '../loader.js';
 import pkg from '../../package.json' with { type: 'json' };
 import { printError } from './errors.js';
+import { startRepl } from '@repl/index.js';
 
 export function runFile(filePathArg: string) {
   const projectRoot = process.cwd();
@@ -38,6 +39,7 @@ Commands:
   version       Displays the current version of the Lumen CLI.
   about         Shows information about the Lumen language.
   help          Displays this help message.
+  repl          Init the Repl.
   `);
 }
 
@@ -50,4 +52,8 @@ It features a strong type system, immutability by default, and powerful tools li
 
 export function showVersion() {
   console.log(`Lumen version ${pkg.version}`);
+}
+
+export function runRepl() {
+  startRepl();
 }

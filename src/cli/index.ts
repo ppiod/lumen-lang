@@ -1,4 +1,4 @@
-import { runFile, showHelp, showAbout, showVersion } from './commands.js';
+import { runFile, showHelp, showAbout, showVersion, runRepl } from './commands.js';
 
 export function start() {
   const args = process.argv.slice(2);
@@ -15,6 +15,9 @@ export function start() {
       runFile(filePath);
       break;
     }
+    case 'repl':
+      runRepl();
+      break;
     case 'version':
       showVersion();
       break;

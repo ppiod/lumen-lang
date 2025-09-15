@@ -1,0 +1,35 @@
+// A classic sorting algorithm that repeatedly steps through the list,
+// comparing adjacent elements and swapping them if they are in the
+// wrong order. Passes are repeated until the list is fully sorted.
+let bubble_pass = fn(arr: Array<Integer>) -> Array<Integer> {
+    match arr {
+        [h1, h2, ...tail] => {
+            if h1 > h2 {
+                prepend(h2, bubble_pass(prepend(h1, tail)))
+            } else {
+                prepend(h1, bubble_pass(prepend(h2, tail)))
+            }
+        },
+        _ => arr
+    }
+};
+
+let bubble_sort = fn(arr: Array<Integer>) -> Array<Integer> {
+    let n = len(arr);
+    let loop = fn(current_arr: Array<Integer>, iterations: Integer) -> Array<Integer> {
+        when {
+            | (iterations <= 0) => current_arr,
+            else => loop(bubble_pass(current_arr), iterations - 1)
+        }
+    };
+    loop(arr, n)
+};
+
+let unsorted_list = [5, 1, 4, 2, 8, 3, 9, 7, 6];
+
+strFormat("Original list: {?}.", unsorted_list) |> writeln;
+
+unsorted_list
+    |> bubble_sort
+    |> (sorted) => strFormat("Sorted list: {?}.", sorted)
+    |> writeln;

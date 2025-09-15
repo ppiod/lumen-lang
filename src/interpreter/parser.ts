@@ -835,71 +835,61 @@ export class Parser {
 
   private parseWhenExpression(): Expression | undefined {
     const whenToken = this.curToken;
+    let subject: Expression | undefined = undefined;
 
-    if (!this.expectPeek(TokenType.LBRACE)) {
-      return undefined;
+    if (this.peekTokenIs(TokenType.LPAREN)) {
+      this.nextToken(); this.nextToken();
+      subject = this.parseExpression(Precedence.LOWEST);
+      if (!this.expectPeek(TokenType.RPAREN)) return undefined;
     }
 
+    if (!this.expectPeek(TokenType.LBRACE)) return undefined;
+
     const branches: WhenExpressionBranch[] = [];
-    let elseBody: Expression | null = null;
+    let elseBody: Expression | undefined = undefined;
 
     while (!this.peekTokenIs(TokenType.RBRACE) && !this.peekTokenIs(TokenType.EOF)) {
       this.nextToken();
 
-      if (this.curTokenIs(TokenType.BAR)) {
+      if (this.curTokenIs(TokenType.ELSE)) {
+        if (elseBody) { this.errors.push('when can only have one else branch'); return undefined; }
+        if (!this.expectPeek(TokenType.FAT_ARROW)) return undefined;
         this.nextToken();
+        elseBody = this.curTokenIs(TokenType.LBRACE) ? this.parseBlockStatement() : this.parseExpression(Precedence.LOWEST);
+        if (!elseBody) return undefined;
 
-        const condition = this.parseExpression(Precedence.ASSIGN);
-        if (!condition) {
-          return undefined;
-        }
-
-        if (!this.expectPeek(TokenType.FAT_ARROW)) {
-          return undefined;
-        }
+      } else if (this.curTokenIs(TokenType.BAR)) {
         this.nextToken();
+        const patterns: Expression[] = [];
+        const firstPattern = this.parseExpression(Precedence.ASSIGN);
+        if (!firstPattern) return undefined;
+        patterns.push(firstPattern);
 
-        const body = this.parseExpression(Precedence.LOWEST);
-        if (!body) {
-          return undefined;
-        }
-        branches.push(new WhenExpressionBranch(condition, body));
-      } else if (this.curTokenIs(TokenType.ELSE)) {
-        if (elseBody) {
-          this.errors.push('when expression can only have one else branch');
-          return undefined;
+        while (this.peekTokenIs(TokenType.COMMA)) {
+          this.nextToken();
+          this.nextToken();
+          const nextPattern = this.parseExpression(Precedence.ASSIGN);
+          if (!nextPattern) return undefined;
+          patterns.push(nextPattern);
         }
 
-        if (!this.expectPeek(TokenType.FAT_ARROW)) {
-          return undefined;
-        }
+        if (!this.expectPeek(TokenType.FAT_ARROW)) return undefined;
         this.nextToken();
+        const body = this.curTokenIs(TokenType.LBRACE) ? this.parseBlockStatement() : this.parseExpression(Precedence.LOWEST);
+        if (!body) return undefined;
+        branches.push(new WhenExpressionBranch(patterns, body));
 
-        const parsedElseBody = this.parseExpression(Precedence.LOWEST);
-        if (!parsedElseBody) {
-          return undefined;
-        }
-        elseBody = parsedElseBody;
-      } else {
-        this.errors.push(`unexpected token in when expression: ${this.curToken.literal}`);
-        return undefined;
-      }
-
-      if (this.peekTokenIs(TokenType.COMMA)) {
+      } else { this.errors.push(`unexpected token in when expression: ${this.curToken.literal}`); return undefined; }
+      
+      if (this.peekTokenIs(TokenType.COMMA) && !this.peekTokenIs(TokenType.RBRACE)) {
         this.nextToken();
       }
     }
 
-    if (!this.expectPeek(TokenType.RBRACE)) {
-      return undefined;
-    }
+    if (!this.expectPeek(TokenType.RBRACE)) return undefined;
+    if (!elseBody) { this.errors.push('when must have an else branch'); return undefined; }
 
-    if (!elseBody) {
-      this.errors.push('when expression must have an else branch');
-      return undefined;
-    }
-
-    return new WhenExpression(whenToken, branches, elseBody);
+    return new WhenExpression(whenToken, subject || null, branches, elseBody!);
   }
 
   private parseFunctionLiteral(): Expression | undefined {
@@ -1168,17 +1158,21 @@ export class Parser {
         return new VariantPattern(path.token, path, parameters);
       }
 
-      this.errors.push(`variable binding patterns are not yet supported`);
-      return undefined;
+      return path;
     }
 
     if (this.curTokenIs(TokenType.LBRACKET)) {
       return this.parseArrayPattern();
     }
 
+    const literalExpr = this.parseExpression(Precedence.LOWEST);
+    if (literalExpr) {
+        return literalExpr as Expression;
+    }
+
     this.errors.push(`Unexpected token in pattern: ${this.curToken.type}`);
     return undefined;
-  }
+}
 
   private parseArrayPattern(): Pattern | undefined {
     const token = this.curToken;

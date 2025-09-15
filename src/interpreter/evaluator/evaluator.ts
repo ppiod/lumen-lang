@@ -677,14 +677,47 @@ function evalWhenExpression(
   env: Environment,
   loader: ModuleLoader,
 ): LumenObject {
-  for (const branch of node.branches) {
-    const condition = Eval(branch.condition, env, loader);
-    if (condition instanceof LumenError) {
-      return condition;
-    }
+  if (node.subject) {
+    const subject = Eval(node.subject, env, loader);
+    if (subject instanceof LumenError) return subject;
 
-    if (isTruthy(condition)) {
-      return Eval(branch.body, env, loader);
+    for (const branch of node.branches) {
+      for (const patternNode of branch.patterns) {
+        const patternValue = Eval(patternNode, env, loader);
+        if (patternValue instanceof LumenError) return patternValue;
+        
+        let branchMatches = false;
+        
+        if (patternValue instanceof LumenBoolean) {
+            if (patternValue.value) {
+                branchMatches = true;
+            }
+        } else {
+            const comparison = evalInfixExpression(
+              '==',
+              subject,
+              patternValue,
+              env,
+              loader,
+              new ast.InfixExpression(patternNode.token, node.subject, '==', patternNode)
+            );
+            if (comparison instanceof LumenBoolean && comparison.value) {
+                branchMatches = true;
+            }
+        }
+
+        if (branchMatches) {
+          return Eval(branch.body, env, loader);
+        }
+      }
+    }
+  } else {
+    for (const branch of node.branches) {
+      const condition = Eval(branch.patterns[0], env, loader);
+      if (condition instanceof LumenError) return condition;
+      if (isTruthy(condition)) {
+        return Eval(branch.body, env, loader);
+      }
     }
   }
 

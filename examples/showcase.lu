@@ -1,0 +1,80 @@
+// A trait defines shared behavior, like an interface.
+trait Describe {
+  fn describe(self) -> String;
+}
+
+// A record is used to group data with named fields.
+record Character(name: String, level: Integer)
+
+// A sum type defines a type that can have one of several "shapes".
+type Action =
+  | Attack(Integer)
+  | Defend();
+
+// Implements the 'Describe' behavior for our 'Character' record.
+impl Describe for Character {
+  fn describe(self) -> String {
+    strFormat("{?} is level {?}", self.name, self.level)
+  }
+}
+
+// Implements the same 'Describe' behavior for the 'Action' sum type.
+impl Describe for Action {
+  fn describe(self) -> String {
+    match self {
+      Attack(damage) => strFormat("An attack for {?} damage!", damage),
+      Defend() => "A defensive stance."
+    }
+  }
+}
+
+// A generic function that accepts any type 'T' that implements 'Describe'.
+let printDescription = fn<T: Describe>(item: T) {
+  item.describe() |> writeln
+};
+
+// A recursive function that uses 'when' to create a countdown.
+let countdown = fn countdown(n: Integer) -> Null {
+  when {
+    | (n < 0) => writeln("Blast off!"),
+    else => {
+      writeln(n);
+      countdown(n - 1)
+    }
+  }
+};
+
+// A function that uses array pattern matching to process a list.
+let processFirstAction = fn(actions: Array<Action>) -> String {
+    match actions {
+        [] => "No actions to process.",
+        [head, ...tail] => strFormat("Processing: {?}. Remaining: {?}.", head.describe(), len(tail))
+    }
+};
+
+// Declaration of immutable and mutable variables.
+let hero = Character("Ryu", 10);
+let mut score: Integer = 0;
+score += 100;
+
+// Using the generic function with the trait.
+printDescription(hero);
+
+// Using an if/else expression to determine a value.
+let status = if hero.level > 5 { "Veteran" } else { "Rookie" };
+strFormat("Status: {?}", status) |> writeln;
+
+// Using the pipe operator and lambdas to chain actions.
+let action = Attack(99);
+action
+    |> (act) => act.describe()
+    |> (desc) => strFormat("Action confirmed: {?}.", desc)
+    |> writeln;
+
+// Calling the recursive function.
+writeln("\nRecursive countdown:");
+countdown(3);
+
+// Using the function with array pattern matching.
+let action_queue: Array<Action> = [Attack(50), Defend()];
+processFirstAction(action_queue) |> writeln;

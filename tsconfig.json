@@ -17,7 +17,8 @@
       "@runtime/*": ["runtime/*"],
       "@stdlib/*": ["stdlib/*"],
       "@syntax/*": ["syntax/*"],
-      "@cli/*": ["cli/*"]
+      "@cli/*": ["cli/*"],
+      "@repl/*": ["repl/*"]
     }
   },
   "include": ["src/**/*"],

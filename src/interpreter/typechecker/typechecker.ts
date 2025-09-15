@@ -28,7 +28,10 @@ export { typeNodeToLumenType, unify };
 function isSameType(a: LumenType, b: LumenType): boolean {
   if (a.kind() === TypeKind.ANY || b.kind() === TypeKind.ANY) return true;
 
-  if (a.kind() === TypeKind.DOUBLE && b.kind() === TypeKind.INTEGER) {
+  if (
+    (a.kind() === TypeKind.DOUBLE && b.kind() === TypeKind.INTEGER) ||
+    (a.kind() === TypeKind.INTEGER && b.kind() === TypeKind.DOUBLE)
+  ) {
     return true;
   }
 
@@ -1258,7 +1261,8 @@ export function check(
     return okTypeArgument;
   }
 
-  if (node instanceof ast.MatchExpression) return checkMatchExpression(node, env, loader);
+  if (node instanceof ast.MatchExpression)
+    return checkMatchExpression(node, env, loader, expectedType);
   if (node instanceof ast.WhenExpression) return checkWhenExpression(node, env, loader);
 
   return new ErrorType(`type checking not implemented for ${node.constructor.name}`, node);
@@ -1269,55 +1273,88 @@ function checkWhenExpression(
   env: TypeEnvironment,
   loader: ModuleLoader,
 ): LumenType {
-  let firstBranchType: LumenType | undefined = undefined;
+  let commonBranchType: LumenType | undefined = undefined;
 
-  for (const branch of node.branches) {
-    const conditionType = check(branch.condition, env, loader);
-    if (conditionType.kind() === TypeKind.ERROR) {
-      return conditionType;
-    }
-
-    if (!isSameType(conditionType, BOOLEAN_TYPE)) {
-      return new ErrorType(
-        `when branch condition must be a Boolean, but got ${conditionType.toString()}`,
-        branch.condition,
-      );
-    }
-
-    const bodyType = check(branch.body, env, loader);
+  const processBranch = (body: ast.Expression): LumenType | undefined => {
+    const bodyType = check(body, env, loader);
     if (bodyType.kind() === TypeKind.ERROR) {
       return bodyType;
     }
 
-    if (!firstBranchType) {
-      firstBranchType = bodyType;
-    } else if (!isSameType(firstBranchType, bodyType)) {
-      return new ErrorType(
-        `when branches must have the same type. Expected ${firstBranchType.toString()} but got ${bodyType.toString()}`,
-        branch.body,
-      );
+    if (!commonBranchType) {
+      commonBranchType = bodyType;
+      return undefined;
+    }
+
+    if (isSameType(commonBranchType, bodyType)) {
+      if (bodyType.kind() === TypeKind.DOUBLE) {
+        commonBranchType = DOUBLE_TYPE;
+      }
+      return undefined;
+    }
+
+    const substitutions = new Map<string, LumenType>();
+    if (unify(commonBranchType, bodyType, substitutions)) {
+      commonBranchType = substitute(commonBranchType, substitutions);
+      return undefined;
+    }
+
+    return new ErrorType(
+      `when branches must have compatible types. Expected ${commonBranchType.toString()} but got ${bodyType.toString()}`,
+      body,
+    );
+  };
+
+  if (node.subject) {
+    const subjectType = check(node.subject, env, loader);
+    if (subjectType.kind() === TypeKind.ERROR) {
+      return subjectType;
+    }
+
+    for (const branch of node.branches) {
+      for (const pattern of branch.patterns) {
+        const patternType = check(pattern, env, loader);
+        if (patternType.kind() === TypeKind.ERROR) return patternType;
+        
+        if (patternType.kind() !== TypeKind.BOOLEAN) {
+            if (!isSameType(subjectType, patternType)) {
+                return new ErrorType(
+                    `this pattern has type ${patternType.toString()}, but the subject has type ${subjectType.toString()}. Patterns must either be comparable to the subject or be a boolean condition.`,
+                    pattern,
+                );
+            }
+        }
+      }
+      const error = processBranch(branch.body);
+      if (error) return error;
+    }
+  } else {
+    for (const branch of node.branches) {
+      const condition = branch.patterns[0];
+      const conditionType = check(condition, env, loader, BOOLEAN_TYPE);
+      if (conditionType.kind() === TypeKind.ERROR) return conditionType;
+      if (!isSameType(conditionType, BOOLEAN_TYPE)) {
+        return new ErrorType(
+          `when branch condition must be a Boolean, but got ${conditionType.toString()}`,
+          condition,
+        );
+      }
+      const error = processBranch(branch.body);
+      if (error) return error;
     }
   }
 
-  const elseBodyType = check(node.elseBody, env, loader);
-  if (elseBodyType.kind() === TypeKind.ERROR) {
-    return elseBodyType;
-  }
+  const elseError = processBranch(node.elseBody);
+  if (elseError) return elseError;
 
-  if (firstBranchType && !isSameType(firstBranchType, elseBodyType)) {
-    return new ErrorType(
-      `when else branch must have the same type as other branches. Expected ${firstBranchType.toString()} but got ${elseBodyType.toString()}`,
-      node.elseBody,
-    );
-  }
-
-  return firstBranchType || elseBodyType;
+  return commonBranchType || NULL_TYPE;
 }
 
 function checkMatchExpression(
   node: ast.MatchExpression,
   env: TypeEnvironment,
   loader: ModuleLoader,
+  expectedType?: LumenType,
 ): LumenType {
   if (node.values.length !== 1) {
     return new ErrorType(`match on tuples is not yet supported by the typechecker`, node);
@@ -1373,7 +1410,7 @@ function checkMatchExpression(
         return new ErrorType(`Unsupported pattern type in match for ${sumType.name}`, arm.pattern);
       }
 
-      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : undefined;
+      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
       const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
       if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
 
@@ -1381,7 +1418,10 @@ function checkMatchExpression(
         firstArmType = armBodyType;
       } else if (!unify(firstArmType, armBodyType, substitutions)) {
         return new ErrorType(
-          `match arms must have the same type. Expected ${substitute(firstArmType, substitutions).toString()} but got ${armBodyType.toString()}`,
+          `match arms must have the same type. Expected ${substitute(
+            firstArmType,
+            substitutions,
+          ).toString()} but got ${armBodyType.toString()}`,
           arm.body,
         );
       }
@@ -1417,7 +1457,7 @@ function checkMatchExpression(
         );
       }
 
-      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : undefined;
+      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
       const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
       if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
 
@@ -1425,7 +1465,10 @@ function checkMatchExpression(
         firstArmType = armBodyType;
       } else if (!unify(firstArmType, armBodyType, substitutions)) {
         return new ErrorType(
-          `match arms must have the same type. Expected ${substitute(firstArmType, substitutions).toString()} but got ${armBodyType.toString()}`,
+          `match arms must have the same type. Expected ${substitute(
+            firstArmType,
+            substitutions,
+          ).toString()} but got ${armBodyType.toString()}`,
           arm.body,
         );
       }

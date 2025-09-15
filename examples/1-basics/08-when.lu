@@ -2,7 +2,6 @@
 // When
 // ===================================
 
-
 // Helper function to log a step in a calculation.
 // By using <T>, we make this function generic.
 // It accepts a value of any type 'T' and returns a value of the same type 'T'.
@@ -26,6 +25,22 @@ let result = trace("Step 1: Parentheses", 10 + 2)
     |> (r) => trace("Step 4: Subtraction (with Modulo)", r - (8 % 3))
     |> (r) => trace("Step 5: Addition (with Multiplication)", r + (factorial(6) * 2));
 
-
 writeln("\n--- Final Result ---");
 writeln(strFormat("The final result is: {?}.", result));
+
+// The 'when' expression can take a "subject" value in parentheses.
+// Each branch then matches against a potential value of the subject.
+
+let describeNumber = fn(n: Integer) -> String {
+    when (n) {
+        | 0 => "zero",
+        | 1, 2, 3 => "a small number",
+        | n > 100 => "a large number",
+        else => "a regular number"
+    }
+};
+
+writeln("\n--- Testing 'when' with a subject ---");
+writeln(describeNumber(2));  // Output: a small number
+writeln(describeNumber(42)) // Output: a regular number
+writeln(describeNumber(300)); // Output: a large number
