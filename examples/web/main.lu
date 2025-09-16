@@ -1,16 +1,17 @@
-use net.http (get, post, listen, json, Response);
+use net.http (get, post, put, delete, listen, json, html, Response);
 use string;
 use examples.web.db (getUser, getAllUsers);
-use examples.web.services (createUser);
+use examples.web.services (createUser, handleUserUpdate, handleDelete);
 
-get("/", (req, params) => Response(200, "Welcome to the API!", {}));
+get("/", (req, params) => html("<h1>Welcome to the Lumen API!</h1>"));
+
 get("/users", (req, params) => json(getAllUsers()));
 
 get("/users/:id", (req, params) => {
   let userId = params["id"];
   match getUser(userId) {
     Ok(user) => json(user),
-    Err(_) => Response(404, strFormat("User with ID {?} not found.", userId), {})
+    Err(msg) => Response(404, strFormat("User not found: {?}", msg), {})
   }
 });
 
@@ -19,6 +20,19 @@ post("/users", (req, params) => {
     Ok(successResponse) => successResponse,
     Err(errorResponse) => errorResponse
   }
+});
+
+put("/users/:id", (req, params) => {
+  let userId = params["id"];
+  match handleUserUpdate(userId, req.body) {
+      Ok(res) => res,
+      Err(errRes) => errRes
+  }
+});
+
+delete("/users/:id", (req, params) => {
+    let userId = params["id"];
+    handleDelete(userId)
 });
 
 listen(8080, () => {

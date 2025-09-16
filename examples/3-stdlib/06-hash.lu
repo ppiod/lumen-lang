@@ -1,0 +1,53 @@
+// ===================================
+// Hash Operations
+// ===================================
+// This example demonstrates the usage of the rich standard library for Hashes.
+use hash;
+
+// 1. Create a mutable hash to store user scores.
+let mut scores: Hash<String, Integer> = {
+    "ryu": 9001,
+    "ken": 8500,
+    "chun-li": 8800
+};
+
+writeln("--- Initial Hash ---");
+writeln("Scores: {?}", scores);
+
+// 2. Add a new entry using hash.set
+writeln("\n--- Modifying the Hash ---");
+hash.set(scores, "guile", 8600);
+writeln("After adding Guile: {?}", scores);
+
+// 3. Check for existence with hash.has
+let hasKen = hash.has(scores, "ken");
+let hasSagat = hash.has(scores, "sagat");
+writeln("\nDoes the hash have 'ken'?: {?}", hasKen); // true
+writeln("Does the hash have 'sagat'?: {?}", hasSagat); // false
+
+// 4. Get a value with hash.get (returns a Result)
+writeln("\n--- Accessing Data ---");
+match hash.get(scores, "ryu") {
+    Ok(score) => writeln("Ryu's score is: {?}", score),
+    Err(_) => writeln("Could not find score for Ryu.")
+}
+
+// 5. Delete an entry with hash.delete
+hash.delete(scores, "ken");
+writeln("\nAfter deleting Ken: {?}", scores);
+
+// 6. Inspecting the hash
+writeln("\n--- Inspecting the Hash ---");
+let currentKeys = hash.keys(scores);
+let currentValues = hash.values(scores);
+let currentSize = hash.size(scores);
+
+writeln("Current keys: {?}", currentKeys);
+writeln("Current values: {?}", currentValues);
+writeln("Current size: {?}", currentSize);
+
+// 7. Checking if empty
+writeln("\n--- Checking if Empty ---");
+let emptyHash: Hash<String, Integer> = {};
+writeln("Is 'scores' hash empty?: {?}", hash.isEmpty(scores)); // false
+writeln("Is 'emptyHash' hash empty?: {?}", hash.isEmpty(emptyHash)); // true

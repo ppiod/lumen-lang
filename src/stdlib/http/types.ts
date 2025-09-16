@@ -17,7 +17,7 @@ export const requestType = new RecordType(
   new Map([
     ['method', STRING_TYPE],
     ['url', STRING_TYPE],
-    ['headers', STRING_TYPE],
+    ['headers', headersType],
     ['body', STRING_TYPE],
   ]),
   ['method', 'url', 'headers', 'body'],
@@ -40,6 +40,7 @@ const responseConstructorType = new FunctionType(
 
 const T = new TypeVariable('T');
 const jsonConstructorType = new FunctionType([T], responseType, [T]);
+const htmlConstructorType = new FunctionType([STRING_TYPE], responseType);
 
 const handlerType = new FunctionType([requestType, paramsType], responseType);
 
@@ -48,7 +49,11 @@ export const httpTypes = new Map<string, LumenType>([
   ['Response', responseType],
   ['ResponseConstructor', responseConstructorType],
   ['json', jsonConstructorType],
+  ['html', htmlConstructorType],
   ['get', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
   ['post', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
+  ['put', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
+  ['delete', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
+  ['patch', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
   ['listen', new FunctionType([INTEGER_TYPE, new FunctionType([], NULL_TYPE)], NULL_TYPE)],
 ]);

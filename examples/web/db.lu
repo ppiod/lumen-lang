@@ -1,41 +1,47 @@
-module examples.web.db exposing (getUser, addUser, getAllUsers);
+module examples.web.db exposing (getUser, addUser, getAllUsers, updateUser, deleteUser);
 
 use examples.web.types (User);
 use hash;
 use string;
 
-trait Database<K, V> {
-  fn get(self, key: K) -> Result<V, String>;
-  fn set(self, key: K, value: V) -> Result<Null, String>;
-}
-
-impl<K, V> Database<K, V> for Hash<K, V> {
-  fn get(self, key: K) -> Result<V, String> {
-    match hash.get(self, key) {
-      Err(_) => Err("Key not found"),
-      Ok(v) => Ok(v)
-    }
-  }
-
-  fn set(self, key: K, value: V) -> Result<Null, String> {
-    hash.set(self, key, value);
-    Ok(NULL)
-  }
-}
-
 let mut users_db: Hash<String, User> = {
   "1": User("Ana", "admin"),
   "2": User("Bruno", "user")
 };
-
 let mut next_user_id: Integer = 3;
 
-let getUser = (id: String) => users_db.get(id);
+let getUser = fn(id: String) -> Result<User, String> {
+    match hash.get(users_db, id) {
+        Ok(user) => Ok(user),
+        Err(_) => Err("User not found")
+    }
+};
+
 let getAllUsers = () => users_db;
 
 let addUser = fn(user: User) -> String {
   let newId = strFormat("{?}", next_user_id);
-  users_db.set(newId, user);
+  hash.set(users_db, newId, user);
   next_user_id += 1;
   newId
+};
+
+let updateUser = fn(id: String, user: User) -> Result<Null, String> {
+    match hash.get(users_db, id) {
+        Err(_) => Err("User not found"),
+        Ok(_) => {
+            hash.set(users_db, id, user);
+            Ok(NULL)
+        }
+    }
+};
+
+let deleteUser = fn(id: String) -> Result<Null, String> {
+    match hash.get(users_db, id) {
+        Err(_) => Err("User not found"),
+        Ok(_) => {
+            hash.delete(users_db, id);
+            Ok(NULL)
+        }
+    }
 };

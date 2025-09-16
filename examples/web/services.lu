@@ -1,43 +1,57 @@
-module examples.web.services exposing (createUser);
+module examples.web.services exposing (createUser, handleUserUpdate, handleDelete);
 
 use net.http (Response, json);
 use json (parse);
 use string;
 use hash;
 use examples.web.types (User, Message);
-use examples.web.db (addUser);
+use examples.web.db (addUser, updateUser, deleteUser);
+
+let getRequiredField = fn(data: Hash<String, String>, field: String) -> Result<String, String> {
+    match hash.get(data, field) {
+        Ok(value) => Ok(value),
+        Err(_) => Err(strFormat("Field '{?}' is required.", field))
+    }
+};
 
 let userFromJson = fn(jsonData: Hash<String, String>) -> Result<User, String> {
-  let name = match hash.get(jsonData, "name") {
-    Ok(v) => Ok(v),
-    Err(_) => Err("Field 'name' is required.")
-  }?;
-  
-  let role = match hash.get(jsonData, "role") {
-    Ok(v) => Ok(v),
-    Err(_) => Err("Field 'role' is required.")
-  }?;
-
+  let name = getRequiredField(jsonData, "name")?;
+  let role = getRequiredField(jsonData, "role")?;
   Ok(User(name, role))
 };
 
-let createUser = fn(body: String) -> Result<Any, Response> {
-  let jsonData = match parse(body) {
-    Ok(data) => Ok(data),
-    Err(msg) => Err(Response(400, strFormat("Bad Request: Invalid JSON - {?}", msg), {}))
-  }?;
+let processBodyToUser = fn(body: String) -> Result<User, Response> {
+    let jsonData = match parse(body) {
+        Ok(data) => Ok(data),
+        Err(msg) => Err(Response(400, strFormat("Bad Request: Invalid JSON - {?}", msg), {}))
+    }?;
 
-  let newUser = match userFromJson(jsonData) {
-    Ok(user) => Ok(user),
-    Err(msg) => Err(Response(400, strFormat("Bad Request: {?}", msg), {}))
-  }?;
-  
+    match userFromJson(jsonData) {
+        Ok(user) => Ok(user),
+        Err(msg) => Err(Response(400, strFormat("Bad Request: {?}", msg), {}))
+    }
+};
+
+let createUser = fn(body: String) -> Result<Response, Response> {
+  let newUser = processBodyToUser(body)?;
   let newId = addUser(newUser);
-  
-  let successMessage = newUser.name
-    |> string.toUpper()
-    |> (name) => strFormat("User '{?}' created successfully", name);
-    
-  let successResponse = json(Message(successMessage, newId));
-  Ok(successResponse)
+  let successMessage = strFormat("User '{?}' created successfully", newUser.name);
+
+  Ok(json(Message(successMessage, newId)))
+};
+
+let handleUserUpdate = fn(id: String, body: String) -> Result<Response, Response> {
+    let updatedUser = processBodyToUser(body)?;
+
+    match updateUser(id, updatedUser) {
+        Ok(_) => Ok(json(Message("User updated successfully", id))),
+        Err(msg) => Err(Response(404, strFormat("Error: {?}", msg), {}))
+    }
+};
+
+let handleDelete = fn(id: String) -> Response {
+    match deleteUser(id) {
+        Ok(_) => Response(204, "", {}),
+        Err(msg) => Response(404, strFormat("Error: {?}", msg), {})
+    }
 };

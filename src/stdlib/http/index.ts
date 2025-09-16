@@ -165,12 +165,18 @@ export const netHttp: NativeModule = {
     ['Response', httpTypes.get('Response')!],
     ['get', httpTypes.get('get')!],
     ['post', httpTypes.get('post')!],
+    ['put', httpTypes.get('put')!],
+    ['delete', httpTypes.get('delete')!],
+    ['patch', httpTypes.get('patch')!],
     ['listen', httpTypes.get('listen')!],
   ]),
   values: new Map([
     ['Request', NULL],
     ['get', new LumenBuiltin((loader, ...args) => addRoute('GET', args))],
     ['post', new LumenBuiltin((loader, ...args) => addRoute('POST', args))],
+    ['put', new LumenBuiltin((loader, ...args) => addRoute('PUT', args))],
+    ['delete', new LumenBuiltin((loader, ...args) => addRoute('DELETE', args))],
+    ['patch', new LumenBuiltin((loader, ...args) => addRoute('PATCH', args))],
     [
       'listen',
       new LumenBuiltin((loader, ...args) => {
@@ -246,6 +252,36 @@ export const netHttp: NativeModule = {
             ]),
           );
 
+          const fields = new Map<string, LumenObject>([
+            ['status', status],
+            ['body', body],
+            ['headers', headers],
+          ]);
+          return new LumenRecord('Response', fields);
+        }),
+      },
+    ],
+    [
+      'html',
+      {
+        type: httpTypes.get('html')! as FunctionType,
+        value: new LumenBuiltin((loader, ...args) => {
+          if (args.length !== 1 || !(args[0] instanceof LumenString)) {
+            return new LumenError('Response.html expects 1 argument: the html string.');
+          }
+          const status = new LumenInteger(200);
+          const body = args[0] as LumenString;
+          const headers = new LumenHash(
+            new Map([
+              [
+                'Content-Type',
+                {
+                  key: new LumenString('Content-Type'),
+                  value: new LumenString('text/html'),
+                },
+              ],
+            ]),
+          );
           const fields = new Map<string, LumenObject>([
             ['status', status],
             ['body', body],
