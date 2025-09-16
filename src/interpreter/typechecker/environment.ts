@@ -3,6 +3,11 @@ import { substitute, typeNodeToLumenType, unify } from './utils.js';
 import type { FunctionType, LumenType, RecordType, SumType, TraitType } from '@syntax/type.js';
 import { TypeKind, TypeVariable } from '@syntax/type.js';
 
+export interface ImplementationBinding {
+  impl: ast.ImplementationStatement;
+  env: TypeEnvironment;
+}
+
 interface TypeBinding {
   type: LumenType;
   isMutable: boolean;
@@ -11,7 +16,7 @@ interface TypeBinding {
 export class TypeEnvironment {
   private store: Map<string, TypeBinding>;
   public constructors: Map<string, FunctionType>;
-  private implementations: Map<string, ast.ImplementationStatement[]>;
+  public implementations: Map<string, ImplementationBinding[]>;
   private outer: TypeEnvironment | null;
   public exposedNames: Set<string> | undefined = undefined;
   public currentFunctionReturnType?: LumenType;
@@ -19,9 +24,23 @@ export class TypeEnvironment {
   constructor(outer: TypeEnvironment | null = null) {
     this.store = new Map();
     this.constructors = outer ? outer.constructors : new Map();
-    this.implementations = new Map();
+    this.implementations = outer ? outer.implementations : new Map();
     this.outer = outer;
     this.currentFunctionReturnType = outer ? outer.currentFunctionReturnType : undefined;
+  }
+
+  public mergeImplementations(otherEnv: TypeEnvironment): void {
+    for (const [typeName, implsToAdd] of otherEnv.implementations.entries()) {
+      if (!this.implementations.has(typeName)) {
+        this.implementations.set(typeName, []);
+      }
+      const existingImpls = this.implementations.get(typeName)!;
+      for (const implToAdd of implsToAdd) {
+        if (!existingImpls.some((e) => e.impl === implToAdd.impl)) {
+          existingImpls.push(implToAdd);
+        }
+      }
+    }
   }
 
   public get(name: string): TypeBinding | undefined {
@@ -37,11 +56,14 @@ export class TypeEnvironment {
     return type;
   }
 
-  public addImplementation(baseTypeName: string, implStatement: ast.ImplementationStatement): void {
-    if (!this.implementations.has(baseTypeName)) {
-      this.implementations.set(baseTypeName, []);
-    }
-    this.implementations.get(baseTypeName)!.push(implStatement);
+  public addImplementation(
+    baseTypeName: string,
+    implStatement: ast.ImplementationStatement,
+    implEnv: TypeEnvironment,
+  ): void {
+    if (!this.implementations.has(baseTypeName)) this.implementations.set(baseTypeName, []);
+
+    this.implementations.get(baseTypeName)!.push({ impl: implStatement, env: implEnv });
   }
 
   public hasImplementation(
@@ -62,16 +84,9 @@ export class TypeEnvironment {
 
     const potentialImpls = this.getImplementationsForType(baseTypeName);
 
-    for (const impl of potentialImpls) {
+    for (const binding of potentialImpls) {
+      const { impl, env: implEnv } = binding;
       const attemptSubstitutions = new Map(substitutions);
-      const implEnv = new TypeEnvironment(this);
-
-      if (impl.typeParameters) {
-        for (const tpNode of impl.typeParameters) {
-          const typeVar = new TypeVariable(tpNode.name.value);
-          implEnv.set(tpNode.name.value, typeVar, false);
-        }
-      }
 
       const implTraitType = typeNodeToLumenType(impl.trait, implEnv);
       if (
@@ -116,11 +131,9 @@ export class TypeEnvironment {
     return false;
   }
 
-  public getImplementationsForType(baseTypeName: string): ast.ImplementationStatement[] {
+  public getImplementationsForType(baseTypeName: string): ImplementationBinding[] {
     const impls = this.implementations.get(baseTypeName) || [];
-    if (this.outer) {
-      return impls.concat(this.outer.getImplementationsForType(baseTypeName));
-    }
+    if (this.outer) return impls.concat(this.outer.getImplementationsForType(baseTypeName));
     return impls;
   }
 }

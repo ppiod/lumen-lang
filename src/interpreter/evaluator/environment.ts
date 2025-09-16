@@ -19,6 +19,20 @@ export class Environment {
     this.outer = outer;
   }
 
+  public mergeImplementations(otherEnv: Environment): void {
+    for (const [typeName, methodsToAdd] of otherEnv.implementations.entries()) {
+      if (!this.implementations.has(typeName)) {
+        this.implementations.set(typeName, new Map());
+      }
+      const existingMethods = this.implementations.get(typeName)!;
+      for (const [methodName, func] of methodsToAdd.entries()) {
+        if (!existingMethods.has(methodName)) {
+          existingMethods.set(methodName, func);
+        }
+      }
+    }
+  }
+
   public get(name: string): LumenObject | undefined {
     const binding = this.getBinding(name);
     return binding ? binding.value : undefined;

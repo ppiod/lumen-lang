@@ -4,7 +4,8 @@
   "main": "src/index.ts",
   "devDependencies": {
     "@eslint/js": "^9.35.0",
-    "@types/node": "^24.4.0",
+    "@types/node": "^24.5.0",
+    "bun-types": "^1.2.22",
     "eslint": "^9.35.0",
     "globals": "^16.4.0",
     "prettier": "^3.6.2",
@@ -16,5 +17,8 @@
     "build:exe:linux": "bun build . --compile --minify --sourcemap --target=bun-linux-x64 --outfile ./bin/lumen",
     "lint": "bunx prettier --write ."
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "bun": "^1.2.22"
+  }
 }

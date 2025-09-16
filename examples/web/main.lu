@@ -1,40 +1,51 @@
-use net.http (get, post, put, delete, listen, json, html, Response);
+use net.http (get, post, put, delete, listen, json, html, Response, Request);
 use string;
-use examples.web.db (getUser, getAllUsers);
-use examples.web.services (createUser, handleUserUpdate, handleDelete);
+use examples.web.db (new);
+use examples.web.services;
 
-get("/", (req, params) => html("<h1>Welcome to the Lumen API!</h1>"));
+let handleResult = fn(result: Result<Response, Response>) -> Response {
+    match result {
+        Ok(res) => res,
+        Err(res) => res
+    }
+};
 
-get("/users", (req, params) => json(getAllUsers()));
+match new() {
+    Err(msg) => {
+        writeln("FATAL: Could not start server, database failed to initialize.");
+        writeln("Error: {?}", msg);
+    },
+    Ok(repo) => {
+        get("/", (req, params) => html("<h1>Welcome to the Lumen API!</h1>"));
 
-get("/users/:id", (req, params) => {
-  let userId = params["id"];
-  match getUser(userId) {
-    Ok(user) => json(user),
-    Err(msg) => Response(404, strFormat("User not found: {?}", msg), {})
-  }
-});
+        get("/users", (req, params) => {
+            let result = repo.all();
+            match result {
+                Ok(users) => json(users),
+                Err(e) => Response(500, strFormat("Database Error: {?}", e), {})
+            }
+        });
 
-post("/users", (req, params) => {
-  match createUser(req.body) {
-    Ok(successResponse) => successResponse,
-    Err(errorResponse) => errorResponse
-  }
-});
+        get("/users/:id", (req, params) => {
+            let result = repo.find(params["id"]);
+            match result {
+                Ok(user) => json(user),
+                Err(msg) => Response(404, strFormat("User not found: {?}", msg), {})
+            }
+        });
 
-put("/users/:id", (req, params) => {
-  let userId = params["id"];
-  match handleUserUpdate(userId, req.body) {
-      Ok(res) => res,
-      Err(errRes) => errRes
-  }
-});
+        post("/users", (req, params) => {
+            let result = services.createUser(repo, req.body);
+            handleResult(result)
+        });
 
-delete("/users/:id", (req, params) => {
-    let userId = params["id"];
-    handleDelete(userId)
-});
+        put("/users/:id", (req, params) => {
+            let result = services.handleUserUpdate(repo, params["id"], req.body);
+            handleResult(result)
+        });
 
-listen(8080, () => {
-  writeln("Server is running at http://localhost:8080");
-});
+        delete("/users/:id", (req, params) => services.handleDelete(repo, params["id"]));
+
+        listen(8080, () => writeln("Server is running at http://localhost:8080"));
+    }
+}

@@ -1,0 +1,80 @@
+//
+// sqlite - Standard Library Documentation
+//
+// The `sqlite` library provides a safe, low-level interface for SQLite databases.
+// All failable functions return a `Result<Success, String>` type, enabling
+// robust error handling with `match` or the `?` operator.
+//
+// --- Core Functions ---
+//
+// open(path: String) -> Result<Database, String>
+//   Opens or creates a database at the specified path.
+//
+// close(db: Database) -> Null
+//   Closes the database connection.
+//
+// --- Statement-Based Execution ---
+//
+// prepare(db: Database, sql: String) -> Result<Statement, String>
+//   Compiles an SQL string into a reusable statement object.
+//
+// run(stmt: Statement, params: Hash|Record|Null) -> Result<Hash, String>
+//   Executes a command that does not return rows (INSERT, UPDATE, DELETE).
+//   Returns info like `changes` and `lastInsertRowid`.
+//
+// get(stmt: Statement, params: Hash|Record|Null) -> Result<Hash|Null, String>
+//   Executes a query and returns the first row found, or NULL.
+//
+// all(stmt: Statement, params: Hash|Record|Null) -> Result<Array<Hash>, String>
+//   Executes a query and returns an array of all found rows.
+//
+
+use sqlite (open, close, prepare, run, get, all);
+
+let printUsers = fn printUsers(list: Array<Hash<String, Any>>) -> Null {
+    writeln("\n--- Users in Database ---");
+    match list {
+        [] => writeln("No users found."),
+        [head, ...tail] => {
+            writeln("- {?}", head["name"]);
+            printUsers(tail)
+        }
+    }
+};
+
+let main = fn() -> Result<Null, String> {
+    let db = open("./users.db")?;
+    writeln("Database opened successfully.");
+    
+    let createTableStmt = prepare(db, "CREATE TABLE IF NOT EXISTS users (name TEXT);")?;
+    run(createTableStmt, NULL)?;
+    writeln("Table 'users' is ready.");
+
+    let countStmt = prepare(db, "SELECT COUNT(*) as count FROM users;")?;
+    let countResult = get(countStmt, NULL)?;
+    
+    when (countResult["count"]) {
+        | 0 => {
+            writeln("Seeding the database with users...");
+            let insertStmt = prepare(db, "INSERT INTO users (name) VALUES ($name);")?;
+            run(insertStmt, { "name": "Alice" })?;
+            run(insertStmt, { "name": "Bob" })?;
+            run(insertStmt, { "name": "Charlie" })?;
+            writeln("Users inserted successfully.");
+        },
+        else => writeln("Database already contains users.")
+    }
+
+    let selectAllStmt = prepare(db, "SELECT name FROM users;")?;
+    let users = all(selectAllStmt, NULL)?;
+    printUsers(users);
+    
+    close(db);
+    writeln("\nDatabase connection closed.");
+    Ok(NULL)
+};
+
+match main() {
+    Ok(_) => writeln("\nExample finished successfully."),
+    Err(msg) => writeln("\nAn error occurred: {?}", msg)
+}

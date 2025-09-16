@@ -1,4 +1,0 @@
-module examples.web.types exposing (User, Message);
-
-record User(name: String, role: String)
-record Message(message: String, id: String)

@@ -1,4 +1,11 @@
-import { LumenHash, LumenInteger, type LumenObject, LumenRecord, LumenString, type HashPair } from '@runtime/objects.js';
+import {
+  LumenHash,
+  LumenInteger,
+  type LumenObject,
+  LumenRecord,
+  LumenString,
+  type HashPair,
+} from '@runtime/objects.js';
 import type http from 'http';
 
 export function createRequestObject(req: http.IncomingMessage, body: string): LumenRecord {

@@ -4,53 +4,56 @@ use net.http (Response, json);
 use json (parse);
 use string;
 use hash;
-use examples.web.types (User, Message);
-use examples.web.db (addUser, updateUser, deleteUser);
+use examples.web.db (UserRepository, User, Message);
 
-let getRequiredField = fn(data: Hash<String, String>, field: String) -> Result<String, String> {
+let getRequiredField = fn(data: Hash<String, Any>, field: String) -> Result<String, String> {
     match hash.get(data, field) {
-        Ok(value) => Ok(value),
+        Ok(value) => Ok(strFormat("{?}", value)),
         Err(_) => Err(strFormat("Field '{?}' is required.", field))
     }
 };
 
-let userFromJson = fn(jsonData: Hash<String, String>) -> Result<User, String> {
+let userFromJson = fn(jsonData: Hash<String, Any>) -> Result<User, String> {
   let name = getRequiredField(jsonData, "name")?;
   let role = getRequiredField(jsonData, "role")?;
   Ok(User(name, role))
 };
 
 let processBodyToUser = fn(body: String) -> Result<User, Response> {
-    let jsonData = match parse(body) {
-        Ok(data) => Ok(data),
-        Err(msg) => Err(Response(400, strFormat("Bad Request: Invalid JSON - {?}", msg), {}))
-    }?;
-
-    match userFromJson(jsonData) {
-        Ok(user) => Ok(user),
-        Err(msg) => Err(Response(400, strFormat("Bad Request: {?}", msg), {}))
-    }
+    parse(body)
+        |> (result) => match result {
+            Ok(data) => userFromJson(data),
+            Err(msg) => Err(strFormat("Bad Request: Invalid JSON - {?}", msg))
+        }
+        |> (result) => match result {
+            Ok(user) => Ok(user),
+            Err(msg) => Err(Response(400, strFormat("Bad Request: {?}", msg), {}))
+        }
 };
 
-let createUser = fn(body: String) -> Result<Response, Response> {
+let createUser = fn<T: UserRepository>(repo: T, body: String) -> Result<Response, Response> {
   let newUser = processBodyToUser(body)?;
-  let newId = addUser(newUser);
-  let successMessage = strFormat("User '{?}' created successfully", newUser.name);
-
-  Ok(json(Message(successMessage, newId)))
+  match repo.create(newUser) {
+      Ok(newId) => Ok(
+        json(Message(
+          strFormat("User '{?}' created successfully", newUser.name), 
+          strFormat("{?}", newId)
+        ))
+      ),
+      Err(e) => Err(Response(500, strFormat("Database Error: {?}", e), {}))
+  }
 };
 
-let handleUserUpdate = fn(id: String, body: String) -> Result<Response, Response> {
+let handleUserUpdate = fn<T: UserRepository>(repo: T, id: String, body: String) -> Result<Response, Response> {
     let updatedUser = processBodyToUser(body)?;
-
-    match updateUser(id, updatedUser) {
+    match repo.update(id, updatedUser) {
         Ok(_) => Ok(json(Message("User updated successfully", id))),
         Err(msg) => Err(Response(404, strFormat("Error: {?}", msg), {}))
     }
 };
 
-let handleDelete = fn(id: String) -> Response {
-    match deleteUser(id) {
+let handleDelete = fn<T: UserRepository>(repo: T, id: String) -> Response {
+    match repo.delete(id) {
         Ok(_) => Response(204, "", {}),
         Err(msg) => Response(404, strFormat("Error: {?}", msg), {})
     }

@@ -55,6 +55,9 @@ Lumen comes with a useful standard library to handle common tasks, including:
 - `json`: Parsing and serializing JSON data.
 - `math`: Common mathematical functions.
 - `string`: String manipulation utilities.
+- `io`: Console and system interaction (input/output).
+- `sqlite`: Interaction with SQLite databases.
+- `datetime`: Date and time functions.
 
 ## License
 

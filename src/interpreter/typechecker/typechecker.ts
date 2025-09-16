@@ -21,7 +21,7 @@ import {
 } from '@syntax/type.js';
 import { TypeEnvironment } from './environment.js';
 import { ModuleLoader } from '../../loader.js';
-import { getTraitNameFromTypeNode, substitute, typeNodeToLumenType, unify } from './utils.js';
+import { substitute, typeNodeToLumenType, unify } from './utils.js';
 
 export { typeNodeToLumenType, unify };
 
@@ -197,7 +197,7 @@ function checkImplementationStatement(
   } else if (targetType.kind() === TypeKind.HASH) {
     baseTypeName = 'Hash';
   }
-  env.addImplementation(baseTypeName, node);
+  env.addImplementation(baseTypeName, node, implEnv);
 
   const implementedMethods = new Map<string, FunctionType>();
   for (const methodNode of node.methods) {
@@ -431,6 +431,8 @@ export function check(
       return new ErrorType(loaded.message, node);
     }
 
+    env.mergeImplementations(loaded.typeEnv);
+
     const moduleType = new ModuleType(moduleName, loaded.typeEnv);
     const bindName = node.path.parts[node.path.parts.length - 1].value;
     env.set(bindName, moduleType, false);
@@ -449,6 +451,10 @@ export function check(
         const binding = loaded.typeEnv.get(name);
         const constructor = loaded.typeEnv.constructors.get(name);
 
+        if (!binding && !constructor) {
+          return new ErrorType(`identifier '${name}' not found in module '${moduleName}'`, exposed);
+        }
+
         if (binding) {
           env.set(name, binding.type, false);
         }
@@ -459,10 +465,6 @@ export function check(
             env.set(name, constructor, false);
           }
         }
-
-        if (!binding && !constructor) {
-          return new ErrorType(`identifier '${name}' not found in module '${moduleName}'`, exposed);
-        }
       }
     }
 
@@ -470,16 +472,10 @@ export function check(
   }
 
   if (node instanceof ast.TypeDeclarationStatement) return checkTypeDeclaration(node, env);
-
   if (node instanceof ast.RecordDeclarationStatement) return checkRecordDeclaration(node, env);
-
-  if (node instanceof ast.TraitDeclarationStatement) {
-    return checkTraitDeclaration(node, env);
-  }
-
-  if (node instanceof ast.ImplementationStatement) {
+  if (node instanceof ast.TraitDeclarationStatement) return checkTraitDeclaration(node, env);
+  if (node instanceof ast.ImplementationStatement)
     return checkImplementationStatement(node, env, loader);
-  }
 
   if (node instanceof ast.BlockStatement) {
     if (node.statements.length === 0) {
@@ -626,27 +622,29 @@ export function check(
         baseTypeName = 'Hash';
       }
 
-      const implementations = env.getImplementationsForType(baseTypeName);
+      const implementationBindings = env.getImplementationsForType(baseTypeName);
 
-      for (const impl of implementations) {
-        const traitName = getTraitNameFromTypeNode(impl.trait);
-        const traitBinding = env.get(traitName);
+      for (const binding of implementationBindings) {
+        const { impl, env: implEnv } = binding;
 
-        if (traitBinding && traitBinding.type.kind() === TypeKind.TRAIT) {
-          const trait = traitBinding.type as TraitType;
+        const traitType = typeNodeToLumenType(impl.trait, implEnv);
+
+        if (traitType && traitType.kind() === TypeKind.TRAIT) {
+          const trait = traitType as TraitType;
           const methodType = trait.methods.get(propertyName);
 
           if (methodType) {
             const substitutions = new Map<string, LumenType>();
-            const implEnv = new TypeEnvironment(env);
+
+            const tempImplEnv = new TypeEnvironment(implEnv);
             if (impl.typeParameters) {
               for (const tpNode of impl.typeParameters) {
                 const typeVar = new TypeVariable(tpNode.name.value);
-                implEnv.set(tpNode.name.value, typeVar, false);
+                tempImplEnv.set(tpNode.name.value, typeVar, false);
               }
             }
 
-            const implTargetType = typeNodeToLumenType(impl.targetType, implEnv);
+            const implTargetType = typeNodeToLumenType(impl.targetType, tempImplEnv);
             if (!unify(objectType, implTargetType, substitutions)) {
               continue;
             }
@@ -786,6 +784,14 @@ export function check(
   }
 
   if (node instanceof ast.InfixExpression) {
+    if (['==', '!=', '<', '>', '<=', '>='].includes(node.operator)) {
+      const leftType = check(node.left, env, loader);
+      if (leftType.kind() === TypeKind.ERROR) return leftType;
+      const rightType = check(node.right, env, loader);
+      if (rightType.kind() === TypeKind.ERROR) return rightType;
+      return BOOLEAN_TYPE;
+    }
+
     if (node.operator === '&&' || node.operator === '||') {
       const leftType = check(node.left, env, loader, BOOLEAN_TYPE);
       if (leftType.kind() === TypeKind.ERROR) return leftType;
@@ -939,20 +945,10 @@ export function check(
         }
         return INTEGER_TYPE;
       }
-      if (['<', '>', '==', '!=', '>=', '<='].includes(node.operator)) {
-        return BOOLEAN_TYPE;
-      }
     }
 
     if (leftType.kind() === TypeKind.STRING && rightType.kind() === TypeKind.STRING) {
       if (node.operator === '+') return STRING_TYPE;
-    }
-
-    if (['==', '!='].includes(node.operator)) {
-      if (leftType.kind() === TypeKind.NULL || rightType.kind() === TypeKind.NULL) {
-        return BOOLEAN_TYPE;
-      }
-      if (isSameType(leftType, rightType)) return BOOLEAN_TYPE;
     }
 
     return new ErrorType(
@@ -1292,16 +1288,16 @@ function checkWhenExpression(
       return undefined;
     }
 
+    const substitutions = new Map<string, LumenType>();
+    if (unify(commonBranchType, bodyType, substitutions)) {
+      commonBranchType = substitute(commonBranchType, substitutions);
+      return undefined;
+    }
+
     if (isSameType(commonBranchType, bodyType)) {
       if (bodyType.kind() === TypeKind.DOUBLE) {
         commonBranchType = DOUBLE_TYPE;
       }
-      return undefined;
-    }
-
-    const substitutions = new Map<string, LumenType>();
-    if (unify(commonBranchType, bodyType, substitutions)) {
-      commonBranchType = substitute(commonBranchType, substitutions);
       return undefined;
     }
 
@@ -1323,7 +1319,7 @@ function checkWhenExpression(
         if (patternType.kind() === TypeKind.ERROR) return patternType;
 
         if (patternType.kind() !== TypeKind.BOOLEAN) {
-          if (!isSameType(subjectType, patternType)) {
+          if (patternType.kind() !== TypeKind.NULL && !unify(subjectType, patternType, new Map())) {
             return new ErrorType(
               `this pattern has type ${patternType.toString()}, but the subject has type ${subjectType.toString()}. Patterns must either be comparable to the subject or be a boolean condition.`,
               pattern,
@@ -1336,14 +1332,15 @@ function checkWhenExpression(
     }
   } else {
     for (const branch of node.branches) {
-      const condition = branch.patterns[0];
-      const conditionType = check(condition, env, loader, BOOLEAN_TYPE);
-      if (conditionType.kind() === TypeKind.ERROR) return conditionType;
-      if (!isSameType(conditionType, BOOLEAN_TYPE)) {
-        return new ErrorType(
-          `when branch condition must be a Boolean, but got ${conditionType.toString()}`,
-          condition,
-        );
+      for (const pattern of branch.patterns) {
+        const conditionType = check(pattern, env, loader, BOOLEAN_TYPE);
+        if (conditionType.kind() === TypeKind.ERROR) return conditionType;
+        if (!isSameType(conditionType, BOOLEAN_TYPE)) {
+          return new ErrorType(
+            `when branch condition must be a Boolean, but got ${conditionType.toString()}`,
+            pattern,
+          );
+        }
       }
       const error = processBranch(branch.body);
       if (error) return error;

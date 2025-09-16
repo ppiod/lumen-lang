@@ -8,6 +8,7 @@ import { fsModule } from './fs/index.js';
 import { hashModule } from './hash/index.js';
 import { datetimeModule } from './datetime/index.js';
 import { ioModule } from './io/index.js';
+import { sqliteModule } from './sqlite/index.js';
 
 export interface NativeModule {
   types: Map<string, LumenType>;
@@ -30,4 +31,5 @@ export const stdlib = new Map<string, NativeModule>([
   ['hash', hashModule],
   ['datetime', datetimeModule],
   ['io', ioModule],
+  ['sqlite', sqliteModule],
 ]);

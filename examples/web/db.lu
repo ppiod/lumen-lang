@@ -1,47 +1,87 @@
-module examples.web.db exposing (getUser, addUser, getAllUsers, updateUser, deleteUser);
+module examples.web.db exposing (
+  UserRepository, 
+  SQLiteRepository, 
+  User, 
+  Message, 
+  new);
 
-use examples.web.types (User);
-use hash;
-use string;
+use sqlite (Database, open, prepare, run, get, all);
 
-let mut users_db: Hash<String, User> = {
-  "1": User("Ana", "admin"),
-  "2": User("Bruno", "user")
-};
-let mut next_user_id: Integer = 3;
+record User(name: String, role: String)
+record Message(message: String, id: String)
+record SQLiteRepository(db: Database)
 
-let getUser = fn(id: String) -> Result<User, String> {
-    match hash.get(users_db, id) {
-        Ok(user) => Ok(user),
-        Err(_) => Err("User not found")
+trait UserRepository {
+  fn find(self, id: String) -> Result<User, String>;
+  fn all(self) -> Result<Array<Hash<String, Any>>, String>;
+  fn create(self, user: User) -> Result<Integer, String>;
+  fn update(self, id: String, user: User) -> Result<Null, String>;
+  fn delete(self, id: String) -> Result<Null, String>;
+}
+
+impl UserRepository for SQLiteRepository {
+  fn find(self, id: String) -> Result<User, String> {
+    let stmt = prepare(self.db, "SELECT name, role FROM users WHERE id = $id;")?;
+    
+    match get(stmt, { "id": id }) {
+        Ok(userData) => when (userData) {
+          | NULL => Err("User not found"),
+          else => Ok(User(userData["name"], userData["role"]))
+        },
+        Err(e) => Err(e)
     }
-};
+  }
 
-let getAllUsers = () => users_db;
+  fn all(self) -> Result<Array<Hash<String, Any>>, String> {
+    prepare(self.db, "SELECT id, name, role FROM users;")?
+      |> (stmt) => all(stmt, NULL)
+  }
 
-let addUser = fn(user: User) -> String {
-  let newId = strFormat("{?}", next_user_id);
-  hash.set(users_db, newId, user);
-  next_user_id += 1;
-  newId
-};
+  fn create(self, user: User) -> Result<Integer, String> {
+    prepare(self.db, "INSERT INTO users (name, role) VALUES ($name, $role);")?
+      |> (stmt) => run(stmt, user)
+      |> (result) => match result {
+          Ok(runInfo) => Ok(runInfo["lastInsertRowid"]),
+          Err(e) => Err(e)
+      }
+  }
 
-let updateUser = fn(id: String, user: User) -> Result<Null, String> {
-    match hash.get(users_db, id) {
-        Err(_) => Err("User not found"),
-        Ok(_) => {
-            hash.set(users_db, id, user);
-            Ok(NULL)
-        }
-    }
-};
+  fn update(self, id: String, user: User) -> Result<Null, String> {
+    let params = { "id": id, "name": user.name, "role": user.role };
+    
+    prepare(self.db, "UPDATE users SET name = $name, role = $role WHERE id = $id;")?
+      |> (stmt) => run(stmt, params)
+      |> (result) => match result {
+          Ok(runInfo) => when (runInfo["changes"]) {
+            | 0 => Err("User not found or no changes made"),
+            else => Ok(NULL)
+          },
+          Err(e) => Err(e)
+      }
+  }
 
-let deleteUser = fn(id: String) -> Result<Null, String> {
-    match hash.get(users_db, id) {
-        Err(_) => Err("User not found"),
-        Ok(_) => {
-            hash.delete(users_db, id);
-            Ok(NULL)
-        }
-    }
+  fn delete(self, id: String) -> Result<Null, String> {
+    prepare(self.db, "DELETE FROM users WHERE id = $id;")?
+      |> (stmt) => run(stmt, { "id": id })
+      |> (result) => match result {
+          Ok(runInfo) => when (runInfo["changes"]) {
+            | 0 => Err("User not found"),
+            else => Ok(NULL)
+          },
+          Err(e) => Err(e)
+      }
+  }
+}
+
+let new = fn() -> Result<SQLiteRepository, String> {
+    let db = open("./webapp.db")?;
+    let createQuery = """
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL
+    );
+    """;
+    run(prepare(db, createQuery)?, NULL)?;
+    Ok(SQLiteRepository(db))
 };

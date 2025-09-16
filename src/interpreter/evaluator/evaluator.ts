@@ -378,6 +378,8 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
       return new LumenError(loaded.message, node);
     }
 
+    env.mergeImplementations(loaded.evalEnv);
+
     const moduleObject = new LumenModule(moduleName, loaded.evalEnv);
     const bindName = node.path.parts[node.path.parts.length - 1].value;
     env.set(bindName, moduleObject, false);
@@ -388,11 +390,16 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
         const value = loaded.evalEnv.get(name);
 
         if (!value) {
+          const typeBinding = loaded.typeEnv.get(name);
+          if (typeBinding) {
+            continue;
+          }
           return new LumenError(
             `identifier '${name}' not found in module '${moduleName}'`,
             exposed,
           );
         }
+
         if (loaded.evalEnv.exposedNames && !loaded.evalEnv.exposedNames.has(name)) {
           return new LumenError(
             `identifier '${name}' is not exposed by module '${moduleName}'`,
