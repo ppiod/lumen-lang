@@ -54,6 +54,7 @@ enum Precedence {
   PIPE,
   ASSIGN,
   ANNOTATE,
+  LOGICAL_OR,
   LOGICAL_AND,
   EQUALS,
   LESSGREATER,
@@ -74,6 +75,7 @@ const precedences: Partial<Record<TokenType, Precedence>> = {
   [TokenType.PIPE]: Precedence.PIPE,
   [TokenType.EQ]: Precedence.EQUALS,
   [TokenType.NOT_EQ]: Precedence.EQUALS,
+  [TokenType.OR]: Precedence.LOGICAL_OR,
   [TokenType.AND]: Precedence.LOGICAL_AND,
   [TokenType.LT]: Precedence.LESSGREATER,
   [TokenType.GT]: Precedence.LESSGREATER,
@@ -130,6 +132,7 @@ export class Parser {
     this.registerInfix(TokenType.PLUS_ASSIGN, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.PIPE, this.parsePipeExpression.bind(this));
     this.registerInfix(TokenType.AND, this.parseInfixExpression.bind(this));
+    this.registerInfix(TokenType.OR, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.PLUS, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.MINUS, this.parseInfixExpression.bind(this));
     this.registerInfix(TokenType.SLASH, this.parseInfixExpression.bind(this));

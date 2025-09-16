@@ -1,0 +1,31 @@
+// Calculates the nth number in the Fibonacci sequence efficiently.
+// It uses a recursive helper function ('iter') to avoid unnecessary recalculations.
+// At each step, the previous two numbers are added and passed to the next call.
+
+use io (input);
+use string (toInteger, trim);
+
+let fib = fn(n: Integer) -> Integer {
+  let iter = fn(count: Integer, a: Integer, b: Integer) -> Integer {
+    when {
+      | (count == 0) => a,
+      else => iter(count - 1, b, a + b)
+    }
+  };
+
+  iter(n, 0, 1)
+};
+
+let num = "Enter a non-negative integer (e.g., 10): "
+  |> input
+  |> trim
+  |> toInteger;
+
+when {
+  | (num < 0) => writeln("Error: The number must be non-negative."),
+  else => {
+    writeln("Calculating Fibonacci({?})...", num);
+    let result = fib(num);
+    writeln("The result is: {?}.", result);
+  }
+}

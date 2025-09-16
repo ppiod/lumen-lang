@@ -786,12 +786,12 @@ export function check(
   }
 
   if (node instanceof ast.InfixExpression) {
-    if (node.operator === '&&') {
+    if (node.operator === '&&' || node.operator === '||') {
       const leftType = check(node.left, env, loader, BOOLEAN_TYPE);
       if (leftType.kind() === TypeKind.ERROR) return leftType;
       if (!isSameType(leftType, BOOLEAN_TYPE)) {
         return new ErrorType(
-          `left-hand side of '&&' must be a Boolean, but got ${leftType.toString()}`,
+          `left-hand side of '${node.operator}' must be a Boolean, but got ${leftType.toString()}`,
           node.left,
         );
       }
@@ -799,7 +799,7 @@ export function check(
       if (rightType.kind() === TypeKind.ERROR) return rightType;
       if (!isSameType(rightType, BOOLEAN_TYPE)) {
         return new ErrorType(
-          `right-hand side of '&&' must be a Boolean, but got ${rightType.toString()}`,
+          `right-hand side of '${node.operator}' must be a Boolean, but got ${rightType.toString()}`,
           node.right,
         );
       }

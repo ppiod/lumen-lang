@@ -1,0 +1,7 @@
+module examples.cycle.A;
+
+use examples.cycle.B;
+
+let funcA = fn() -> String {
+  "Function A calls: " + B.funcB();
+};

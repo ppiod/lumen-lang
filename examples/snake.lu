@@ -1,0 +1,203 @@
+// Implements a turn-based version of the classic Snake game in the terminal.
+// The game uses records to manage state and recursion for the main game loop.
+// Player input is handled on each turn to control the snake's direction.
+
+use io (input, exec);
+use math (randomInt);
+use datetime (sleep);
+
+trait Display {
+  fn display(self) -> String;
+}
+
+type Player =
+  | X()
+  | O();
+
+impl Display for Player {
+  fn display(self) -> String {
+    match self {
+      X() => "X",
+      O() => "O"
+    }
+  }
+}
+
+let WIDTH = 20;
+let HEIGHT = 10;
+
+type Direction = | Up() | Down() | Left() | Right()
+
+record Point(x: Integer, y: Integer)
+record Game(
+  snake: Array<Point>, 
+  food: Point, 
+  direction: Direction, 
+  score: Integer, 
+  isGameOver: Boolean
+)
+
+let clearScreen = fn() -> Null {
+  match exec("cls") {
+    Ok(_) => NULL,
+    Err(_) => exec("clear") |> (_) => NULL
+  }
+};
+
+let pointsAreEqual = fn(p1: Point, p2: Point) -> Boolean: p1.x == p2.x && p1.y == p2.y
+
+let isPointInArray = fn isPointInArray(pt: Point, arr: Array<Point>) -> Boolean {
+  match arr {
+    [] => false,
+    [head, ...tail] => if pointsAreEqual(pt, head) {
+      true
+    } else {
+      isPointInArray(pt, tail)
+    }
+  }
+};
+
+let dropLast = fn dropLast(arr: Array<Point>) -> Array<Point> {
+  if len(arr) <= 1 {
+    []
+  } else {
+    match arr {
+      [head, ...tail] => prepend(head, dropLast(tail))
+    }
+  }
+};
+
+let getRandomEmptyPoint = fn(snake: Array<Point>) -> Point {
+  let newPoint = Point(randomInt(0, WIDTH - 1), randomInt(0, HEIGHT - 1));
+  if isPointInArray(newPoint, snake) {
+    getRandomEmptyPoint(snake)
+  } else {
+    newPoint
+  }
+};
+
+let getNextHead = fn(currentHead: Point, direction: Direction) -> Point {
+  match direction {
+    Up() => Point(currentHead.x, currentHead.y - 1),
+    Down() => Point(currentHead.x, currentHead.y + 1),
+    Left() => Point(currentHead.x - 1, currentHead.y),
+    Right() => Point(currentHead.x + 1, currentHead.y)
+  }
+};
+
+let checkCollisions = fn(head: Point, snakeBody: Array<Point>) -> Boolean {
+  let wallCollision = head.x < 0 || head.x >= WIDTH || head.y < 0 || head.y >= HEIGHT;
+  let selfCollision = isPointInArray(head, snakeBody);
+  wallCollision || selfCollision
+};
+
+let render = fn(game: Game) -> Null {
+  clearScreen();
+  writeln("--- Lumen Snake ---");
+  writeln("Score: {?}", game.score);
+
+  let drawRow = fn(y: Integer) -> Null {
+    if y >= HEIGHT {
+      NULL
+    } else {
+      let drawPixel = fn(x: Integer) -> String {
+        if x >= WIDTH {
+          ""
+        } else {
+          let currentPoint = Point(x, y);
+          let pixel = if pointsAreEqual(currentPoint, game.food) {
+            " F "
+          } else if isPointInArray(currentPoint, game.snake) {
+            " O "
+          } else {
+            " . "
+          };
+          pixel + drawPixel(x + 1)
+        }
+      };
+      writeln(drawPixel(0));
+      drawRow(y + 1)
+    }
+  };
+
+  drawRow(0);
+  writeln("====================");
+};
+
+let getPlayerDirection = fn getPlayerDirection(currentDir: Direction) -> Direction {
+  let choice = input("Next move (w/a/s/d): ");
+  let dirStr = strFormat("{?}", currentDir);
+  
+  when {
+    | (choice == "w" && dirStr == "Down()") => {
+      writeln("You cannot reverse direction!");
+      getPlayerDirection(currentDir)
+    },
+    | (choice == "s" && dirStr == "Up()") => {
+      writeln("You cannot reverse direction!");
+      getPlayerDirection(currentDir)
+    },
+    | (choice == "a" && dirStr == "Right()") => {
+      writeln("You cannot reverse direction!");
+      getPlayerDirection(currentDir)
+    },
+    | (choice == "d" && dirStr == "Left()") => {
+      writeln("You cannot reverse direction!");
+      getPlayerDirection(currentDir)
+    },
+    | (choice == "w") => Up(),
+    | (choice == "s") => Down(),
+    | (choice == "a") => Left(),
+    | (choice == "d") => Right(),
+    else => {
+      writeln("Invalid input. Please use w, a, s, or d.");
+      getPlayerDirection(currentDir)
+    }
+  }
+};
+
+let gameLoop = fn gameLoop(game: Game) -> Null {
+  if game.isGameOver {
+    writeln("\n--- GAME OVER ---");
+    writeln("Final Score: {?}\n", game.score);
+    NULL
+  } else {
+    render(game);
+    sleep(100);
+
+    let nextDir = getPlayerDirection(game.direction);
+    let currentHead = game.snake[0];
+    let newHead = getNextHead(currentHead, nextDir);
+
+    let ateFood = pointsAreEqual(newHead, game.food);
+    
+    let bodyToKeep = if ateFood: game.snake else: dropLast(game.snake);
+    let newSnake = prepend(newHead, bodyToKeep);
+    
+    let newFood = if ateFood: getRandomEmptyPoint(newSnake) else: game.food;
+    let newScore = if ateFood: game.score + 10 else: game.score;
+    
+    let newIsGameOver = checkCollisions(newHead, bodyToKeep);
+
+    let nextGame = Game(
+      newSnake,
+      newFood,
+      nextDir,
+      newScore,
+      newIsGameOver
+    );
+
+    gameLoop(nextGame)
+  }
+};
+
+let initialSnake = [Point(5, 5), Point(5, 6)];
+let initialGame = Game(
+  initialSnake,
+  getRandomEmptyPoint(initialSnake),
+  Up(),
+  0,
+  false
+);
+
+gameLoop(initialGame);

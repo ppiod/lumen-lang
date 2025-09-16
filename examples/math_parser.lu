@@ -1,0 +1,97 @@
+// ===================================
+// Math Expression Parser and Evaluator
+// ===================================
+
+// --- 1. Trait and AST Definition ---
+
+// A trait to define behavior for types that can be displayed as a string.
+trait Display {
+  fn display(self) -> String;
+}
+
+type Expr =
+  | Number(Integer)
+  | Add(Expr, Expr)
+  | Subtract(Expr, Expr)
+  | Multiply(Expr, Expr)
+  | Divide(Expr, Expr);
+
+// We implement the Display trait for our Expr type.
+// This allows any expression to know how to print itself.
+impl Display for Expr {
+  fn display(self) -> String {
+    match self {
+      Number(n) => strFormat("{?}", n),
+      Add(l, r) => strFormat("({?} + {?})", l.display(), r.display()),
+      Subtract(l, r) => strFormat("({?} - {?})", l.display(), r.display()),
+      Multiply(l, r) => strFormat("({?} * {?})", l.display(), r.display()),
+      Divide(l, r) => strFormat("({?} / {?})", l.display(), r.display())
+    }
+  }
+}
+
+// --- 2. The Evaluator ---
+
+let eval = fn eval(expr: Expr) -> Result<Integer, String> {
+  match expr {
+    Number(n) => Ok(n),
+    Add(left, right) => {
+      let lval = eval(left)?;
+      let rval = eval(right)?;
+      Ok(lval + rval)
+    },
+    Subtract(left, right) => {
+      let lval = eval(left)?;
+      let rval = eval(right)?;
+      Ok(lval - rval)
+    },
+    Multiply(left, right) => {
+      let lval = eval(left)?;
+      let rval = eval(right)?;
+      Ok(lval * rval)
+    },
+    Divide(left, right) => {
+      let lval = eval(left)?;
+      let rval = eval(right)?;
+      if rval == 0: Err("Division by zero!") else: Ok(lval / rval);
+    }
+  }
+};
+
+// --- 3. Main Program ---
+
+// A helper function to run and print the evaluation of an AST.
+let evaluateAndPrint = fn(ast: Expr) -> Null {
+  writeln("Evaluating expression: {?}", ast.display());
+
+  ast
+    |> eval
+    |> (result) => match result {
+      Ok(value) => writeln("Result: {?}\n", value),
+      Err(msg) => writeln("Error: {?}\n", msg)
+    }
+};
+
+writeln("--- Math Expression Evaluator ---");
+
+// AST for: (5 + 10) * 2
+let ast1 = Multiply(
+  Add(Number(5), Number(10)),
+  Number(2)
+);
+
+// AST for: 100 / (5 * (3 - 1))
+let ast2 = Divide(
+  Number(100),
+  Multiply(
+    Number(5),
+    Subtract(Number(3), Number(1))
+  )
+);
+
+// AST for an expression with an error
+let errorAst = Divide(Number(10), Number(0));
+
+evaluateAndPrint(ast1);     // Expected: 30
+evaluateAndPrint(ast2);     // Expected: 10
+evaluateAndPrint(errorAst); // Expected: Error message

@@ -1,0 +1,6 @@
+// This script tests the circular dependency detection in the module loader.
+// It tries to import module A, which imports B, which in turn imports A.
+// This should trigger the cycle detection error instead of crashing.
+use examples.cycle.A;
+
+writeln("If you see this message, cycle detection failed..");

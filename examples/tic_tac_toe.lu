@@ -1,0 +1,262 @@
+// Implements a Tic-Tac-Toe game where a human plays against a computer opponent.
+// The game state is managed using sum types, and the AI uses a simple strategy.
+// It demonstrates core Lumen features like pattern matching, traits, and recursion.
+
+use io (input);
+use math (randomInt);
+use string (toInteger);
+
+trait Display {
+  fn display(self) -> String;
+}
+
+type Player =
+  | X()
+  | O();
+
+impl Display for Player {
+  fn display(self) -> String {
+    match self {
+      X() => "X",
+      O() => "O"
+    }
+  }
+}
+
+type Cell =
+  | Empty()
+  | Occupied(Player);
+
+type GameState =
+  | Ongoing()
+  | Win(Player)
+  | Draw();
+
+let cellToString = fn(cell: Cell, position: Integer) -> String {
+  match cell {
+    Empty() => strFormat("{?}", position),
+    Occupied(p) => p.display()
+  }
+};
+
+let printBoard = fn(board: Array<Cell>) -> Null {
+  writeln("");
+  writeln(" {?} | {?} | {?} ", cellToString(board[0], 1), cellToString(board[1], 2), cellToString(board[2], 3));
+  writeln("---|---|---");
+  writeln(" {?} | {?} | {?} ", cellToString(board[3], 4), cellToString(board[4], 5), cellToString(board[5], 6));
+  writeln("---|---|---");
+  writeln(" {?} | {?} | {?} ", cellToString(board[6], 7), cellToString(board[7], 8), cellToString(board[8], 9));
+  writeln("");
+};
+
+let updateBoard = fn(board: Array<Cell>, index: Integer, player: Player) -> Array<Cell> {
+  let update = fn(current: Array<Cell>, i: Integer) -> Array<Cell> {
+    match current {
+      [] => [],
+      [head, ...tail] => {
+        let newHead = if i == index: Occupied(player) else: head;
+        prepend(newHead, update(tail, i + 1))
+      }
+    }
+  };
+  update(board, 0)
+};
+
+let checkWinner = fn(b: Array<Cell>) -> Result<Player, Null> {
+  let lines = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6]
+  ];
+
+  let checkLine = fn(line: Array<Integer>) -> Result<Player, Null> {
+    let cell1 = b[line[0]];
+    let cell2 = b[line[1]];
+    let cell3 = b[line[2]];
+
+    match cell1 {
+      Occupied(p1) => {
+        let cell2IsP1 = match cell2 {
+          Occupied(p2) => p1.display() == p2.display(),
+          _ => false
+        };
+        
+        let cell3IsP1 = match cell3 {
+          Occupied(p3) => p1.display() == p3.display(),
+          _ => false
+        };
+
+        if cell2IsP1 && cell3IsP1 {
+          Ok(p1)
+        } else {
+          Err(NULL)
+        }
+      },
+      _ => Err(NULL)
+    }
+  };
+
+  let checkAll = fn(l: Array<Array<Integer>>) -> Result<Player, Null> {
+    match l {
+      [] => Err(NULL),
+      [head, ...tail] => match checkLine(head) {
+        Ok(player) => Ok(player),
+        Err(_) => checkAll(tail)
+      }
+    }
+  };
+  
+  checkAll(lines)
+};
+
+let isBoardFull = fn(board: Array<Cell>) -> Boolean {
+  reduce(board, true, (acc, cell) => acc && match cell {
+    Occupied(_) => true,
+    Empty() => false
+  })
+};
+
+let getGameState = fn(board: Array<Cell>) -> GameState {
+  match checkWinner(board) {
+    Ok(player) => Win(player),
+    Err(_) => if isBoardFull(board) {
+      Draw()
+    } else {
+      Ongoing()
+    }
+  }
+};
+
+let findEmpty = fn(b: Array<Cell>, index: Integer) -> Array<Integer> {
+  if index >= len(b) {
+    []
+  } else {
+    let rest = findEmpty(b, index + 1);
+    match b[index] {
+      Empty() => prepend(index, rest),
+      _ => rest
+    }
+  }
+};
+
+let findWinningMove = fn(board: Array<Cell>, player: Player) -> Result<Integer, Null> {
+  let emptyIndices = findEmpty(board, 0);
+  
+  let checkMoves = fn(indices: Array<Integer>) -> Result<Integer, Null> {
+    match indices {
+      [] => Err(NULL),
+      [head, ...tail] => {
+        let tempBoard = updateBoard(board, head, player);
+        if (match checkWinner(tempBoard) { Ok(_) => true, _ => false }) {
+          Ok(head)
+        } else {
+          checkMoves(tail)
+        }
+      }
+    }
+  };
+  
+  checkMoves(emptyIndices)
+};
+
+let findRandomAvailable = fn(board: Array<Cell>, spots: Array<Integer>) -> Result<Integer, Null> {
+  let availableSpots = filter(spots, (spot) => match board[spot] { Empty() => true, _ => false });
+  if len(availableSpots) > 0 {
+    let randomIndex = randomInt(0, len(availableSpots) - 1);
+    Ok(availableSpots[randomIndex])
+  } else {
+    Err(NULL)
+  }
+};
+
+let computerMove = fn(board: Array<Cell>) -> Array<Cell> {
+  writeln("Computer (O) is thinking...");
+
+  match findWinningMove(board, O()) {
+    Ok(moveIndex) => {
+      writeln("Computer sees a winning move at {?}.", moveIndex + 1);
+      updateBoard(board, moveIndex, O())
+    },
+    Err(_) => {
+      match findWinningMove(board, X()) {
+        Ok(moveIndex) => {
+          writeln("Computer blocks your win at {?}.", moveIndex + 1);
+          updateBoard(board, moveIndex, O())
+        },
+        Err(_) => {
+          if (match board[4] { Empty() => true, _ => false }) {
+            writeln("Computer takes the center.");
+            updateBoard(board, 4, O())
+          } else {
+            match findRandomAvailable(board, [0, 2, 6, 8]) {
+              Ok(moveIndex) => {
+                writeln("Computer takes a corner at {?}.", moveIndex + 1);
+                updateBoard(board, moveIndex, O())
+              },
+              Err(_) => {
+                let moveIndex = findEmpty(board, 0)[0];
+                writeln("Computer plays at position {?}.", moveIndex + 1);
+                updateBoard(board, moveIndex, O())
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
+let playerMove = fn playerMove(board: Array<Cell>) -> Array<Cell> {
+  let moveStr = input("Your turn (X). Choose a position (1-9): ");
+  let moveInt = toInteger(string.trim(moveStr));
+  
+  if moveInt < 1 || moveInt > 9 {
+    writeln("Invalid input. Please choose a number between 1 and 9.");
+    playerMove(board)
+  } else {
+    let index = moveInt - 1;
+    match board[index] {
+      Occupied(_) => {
+        writeln("That position is already occupied. Try another one.");
+        playerMove(board)
+      },
+      Empty() => updateBoard(board, index, X())
+    }
+  }
+};
+
+let gameLoop = fn gameLoop(board: Array<Cell>, currentPlayer: Player) -> Null {
+  printBoard(board);
+  
+  let newBoard = match currentPlayer {
+    X() => playerMove(board),
+    O() => computerMove(board)
+  };
+  
+  match getGameState(newBoard) {
+    Ongoing() => {
+      let nextPlayer = match currentPlayer {
+        X() => O(),
+        O() => X()
+      };
+      gameLoop(newBoard, nextPlayer)
+    },
+    Win(winner) => {
+      printBoard(newBoard);
+      writeln("🎉 Player {?} wins! 🎉", winner.display());
+    },
+    Draw() => {
+      printBoard(newBoard);
+      writeln("The game ended in a draw!");
+    }
+  }
+};
+
+let initialBoard: Array<Cell> = [
+  Empty(), Empty(), Empty(),
+  Empty(), Empty(), Empty(),
+  Empty(), Empty(), Empty()
+];
+
+writeln("Welcome to Tic-Tac-Toe in Lumen!");
+gameLoop(initialBoard, X());

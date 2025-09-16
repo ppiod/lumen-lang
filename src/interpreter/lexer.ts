@@ -62,6 +62,7 @@ export class Lexer {
       ['>=', TokenType.GTE],
       ['<=', TokenType.LTE],
       ['&&', TokenType.AND],
+      ['||', TokenType.OR],
       ['->', TokenType.ARROW],
       ['|>', TokenType.PIPE],
       ['=>', TokenType.FAT_ARROW],

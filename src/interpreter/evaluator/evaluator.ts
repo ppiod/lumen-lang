@@ -553,6 +553,15 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
       return Eval(node.right, env, loader);
     }
 
+    if (node.operator === '||') {
+      const left = Eval(node.left, env, loader);
+      if (left instanceof LumenError) return left;
+      if (isTruthy(left)) {
+        return left;
+      }
+      return Eval(node.right, env, loader);
+    }
+
     const left = Eval(node.left, env, loader);
     if (left instanceof LumenError) return left;
     const right = Eval(node.right, env, loader);

@@ -31,6 +31,7 @@ export interface LoadedModule {
 export class ModuleLoader {
   private cache: Map<string, LoadedModule> = new Map();
   private baseDir: string;
+  private loadingStack: string[] = [];
 
   constructor(baseDir: string) {
     this.baseDir = baseDir;
@@ -47,42 +48,59 @@ export class ModuleLoader {
       return this.cache.get(moduleName)!;
     }
 
-    if (stdlib.has(moduleName)) {
-      const nativeModule = stdlib.get(moduleName)!;
-
-      const typeEnv = new TypeEnvironment();
-      for (const [name, type] of nativeModule.types.entries()) {
-        typeEnv.set(name, type, false);
-      }
-      if (nativeModule.constructors) {
-        for (const [name, ctor] of nativeModule.constructors.entries()) {
-          typeEnv.constructors.set(name, ctor.type);
-        }
-      }
-
-      const evalEnv = new Environment();
-      for (const [name, value] of nativeModule.values.entries()) {
-        evalEnv.set(name, value, false);
-      }
-      if (nativeModule.constructors) {
-        for (const [name, ctor] of nativeModule.constructors.entries()) {
-          evalEnv.set(name, ctor.value, false);
-        }
-      }
-
-      const allExposedNames = new Set([
-        ...nativeModule.types.keys(),
-        ...nativeModule.values.keys(),
-        ...(nativeModule.constructors?.keys() || []),
-      ]);
-      typeEnv.exposedNames = allExposedNames;
-      evalEnv.exposedNames = allExposedNames;
-
-      const loadedModule: LoadedModule = { program: null, typeEnv, evalEnv };
-      this.cache.set(moduleName, loadedModule);
-      return loadedModule;
+    if (this.loadingStack.includes(moduleName)) {
+      const cyclePath = [...this.loadingStack, moduleName].join(' -> ');
+      return new Error(`Circular dependency detected: ${cyclePath}`);
     }
 
+    this.loadingStack.push(moduleName);
+
+    try {
+      if (stdlib.has(moduleName)) {
+        return this.loadNativeModule(moduleName);
+      }
+      return this.loadUserModule(moduleName);
+    } finally {
+      this.loadingStack.pop();
+    }
+  }
+
+  private loadNativeModule(moduleName: string): LoadedModule {
+    const nativeModule = stdlib.get(moduleName)!;
+    const typeEnv = new TypeEnvironment();
+    for (const [name, type] of nativeModule.types.entries()) {
+      typeEnv.set(name, type, false);
+    }
+    if (nativeModule.constructors) {
+      for (const [name, ctor] of nativeModule.constructors.entries()) {
+        typeEnv.constructors.set(name, ctor.type);
+      }
+    }
+
+    const evalEnv = new Environment();
+    for (const [name, value] of nativeModule.values.entries()) {
+      evalEnv.set(name, value, false);
+    }
+    if (nativeModule.constructors) {
+      for (const [name, ctor] of nativeModule.constructors.entries()) {
+        evalEnv.set(name, ctor.value, false);
+      }
+    }
+
+    const allExposedNames = new Set([
+      ...nativeModule.types.keys(),
+      ...nativeModule.values.keys(),
+      ...(nativeModule.constructors?.keys() || []),
+    ]);
+    typeEnv.exposedNames = allExposedNames;
+    evalEnv.exposedNames = allExposedNames;
+
+    const loadedModule: LoadedModule = { program: null, typeEnv, evalEnv };
+    this.cache.set(moduleName, loadedModule);
+    return loadedModule;
+  }
+
+  private loadUserModule(moduleName: string): LoadedModule | Error {
     const filePath = this.resolvePath(moduleName);
     let input: string;
 

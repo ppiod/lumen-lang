@@ -27,6 +27,7 @@ export enum TokenType {
   EQ = '==',
   NOT_EQ = '!=',
   AND = '&&',
+  OR = '||',
 
   ARROW = '->',
   PIPE = '|>',

@@ -1,3 +1,4 @@
+// Import the new functions from the io standard library
 use io (input, exec);
 
 writeln("--- IO Library Showcase ---");

@@ -1,0 +1,7 @@
+module examples.cycle.B exposing (funcB);
+
+use examples.cycle.A;
+
+let funcB = fn() -> String {
+  "Function B"
+};
