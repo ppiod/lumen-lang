@@ -42,7 +42,22 @@ RESULT_TYPE.variants.set('Err', ERR_VARIANT);
 
 builtinTypes.set('Result', RESULT_TYPE);
 
+const T_OPTION = new TypeVariable('T');
+export const OPTION_TYPE = new SumType('Option', [T_OPTION]);
+
+const SOME_VARIANT = new VariantType('Some', [T_OPTION], OPTION_TYPE);
+const NONE_VARIANT = new VariantType('None', [], OPTION_TYPE);
+
+OPTION_TYPE.variants.set('Some', SOME_VARIANT);
+OPTION_TYPE.variants.set('None', NONE_VARIANT);
+
+builtinTypes.set('Option', OPTION_TYPE);
+
+
 export const builtinConstructors = new Map<string, FunctionType>([
   ['Ok', new FunctionType([T_RESULT], RESULT_TYPE, [T_RESULT, E_RESULT])],
   ['Err', new FunctionType([E_RESULT], RESULT_TYPE, [T_RESULT, E_RESULT])],
+
+  ['Some', new FunctionType([T_OPTION], OPTION_TYPE, [T_OPTION])],
+  ['None', new FunctionType([], OPTION_TYPE, [T_OPTION])],
 ]);

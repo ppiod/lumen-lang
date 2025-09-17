@@ -4,7 +4,7 @@
 
 use io (input);
 use math (randomInt);
-use string (toInteger);
+use string (toInteger, trim);
 
 trait Display {
   fn display(self) -> String;
@@ -208,7 +208,7 @@ let computerMove = fn(board: Array<Cell>) -> Array<Cell> {
 
 let playerMove = fn playerMove(board: Array<Cell>) -> Array<Cell> {
   let moveStr = input("Your turn (X). Choose a position (1-9): ");
-  let moveInt = toInteger(string.trim(moveStr));
+  let moveInt = toInteger(trim(moveStr));
   
   if moveInt < 1 || moveInt > 9 {
     writeln("Invalid input. Please choose a number between 1 and 9.");

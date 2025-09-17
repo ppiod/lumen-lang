@@ -17,6 +17,13 @@ export class Environment {
     this.variantToSumType = outer ? outer.variantToSumType : new Map();
     this.implementations = outer ? outer.implementations : new Map();
     this.outer = outer;
+
+    if (!outer) {
+        this.variantToSumType.set('Ok', 'Result');
+        this.variantToSumType.set('Err', 'Result');
+        this.variantToSumType.set('Some', 'Option');
+        this.variantToSumType.set('None', 'Option');
+    }
   }
 
   public mergeImplementations(otherEnv: Environment): void {

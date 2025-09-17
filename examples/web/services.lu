@@ -8,8 +8,8 @@ use examples.web.db (UserRepository, User, Message);
 
 let getRequiredField = fn(data: Hash<String, Any>, field: String) -> Result<String, String> {
     match hash.get(data, field) {
-        Ok(value) => Ok(strFormat("{?}", value)),
-        Err(_) => Err(strFormat("Field '{?}' is required.", field))
+        Some(value) => Ok(strFormat("{?}", value)),
+        None() => Err(strFormat("Field '{?}' is required.", field))
     }
 };
 

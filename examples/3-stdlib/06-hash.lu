@@ -25,11 +25,11 @@ let hasSagat = hash.has(scores, "sagat");
 writeln("\nDoes the hash have 'ken'?: {?}", hasKen); // true
 writeln("Does the hash have 'sagat'?: {?}", hasSagat); // false
 
-// 4. Get a value with hash.get (returns a Result)
+// 4. Get a value with hash.get (returns an Option)
 writeln("\n--- Accessing Data ---");
 match hash.get(scores, "ryu") {
-    Ok(score) => writeln("Ryu's score is: {?}", score),
-    Err(_) => writeln("Could not find score for Ryu.")
+    Some(score) => writeln("Ryu's score is: {?}", score),
+    None() => writeln("Could not find score for Ryu.")
 }
 
 // 5. Delete an entry with hash.delete

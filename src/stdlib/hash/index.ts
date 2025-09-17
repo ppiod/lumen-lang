@@ -3,7 +3,6 @@ import {
   LumenError,
   LumenHash,
   type LumenObject,
-  NULL,
   LumenSumTypeInstance,
   type Hashable,
   LumenBoolean,
@@ -13,8 +12,8 @@ import {
 import type { NativeModule } from '@stdlib/index.js';
 import { hashTypes } from './types.js';
 
-const Ok = (value: LumenObject) => new LumenSumTypeInstance('Result', 'Ok', [value]);
-const Err = (value: LumenObject) => new LumenSumTypeInstance('Result', 'Err', [value]);
+const Some = (value: LumenObject) => new LumenSumTypeInstance('Option', 'Some', [value]);
+const None = () => new LumenSumTypeInstance('Option', 'None', []);
 
 export const hashModule: NativeModule = {
   types: hashTypes,
@@ -40,9 +39,9 @@ export const hashModule: NativeModule = {
         const pair = hash.pairs.get(hashableKey.hashKey());
 
         if (!pair) {
-          return Err(NULL);
+          return None();
         }
-        return Ok(pair.value);
+        return Some(pair.value);
       }),
     ],
     [
