@@ -78,3 +78,35 @@ countdown(3);
 // Using the function with array pattern matching.
 let action_queue: Array<Action> = [Attack(50), Defend()];
 processFirstAction(action_queue) |> writeln;
+
+
+// Tuples are fixed-size, ordered lists that can hold values of different types.
+writeln("\n--- Tuples ---");
+let player_data: (Integer, String, Boolean) = (1, "Ryu", true);
+
+// They can be destructured with `let`.
+let (id, name, isActive) = player_data;
+writeln(strFormat("Player {?} (ID: {?}) is active: {?}.", name, id, isActive));
+
+
+// The `Result` type is used for operations that can fail.
+// It can be either `Ok(value)` for success or `Err(message)` for failure.
+writeln("\n--- Error Handling ---");
+let safe_divide = fn(a: Integer, b: Integer) -> Result<Integer, String> {
+  if b == 0 {
+    Err("Cannot divide by zero!")
+  } else {
+    Ok(a / b)
+  }
+};
+
+// We use `match` to handle both possibilities safely.
+match safe_divide(10, 2) {
+  Ok(result) => writeln("10 / 2 is {?}.", result),
+  Err(msg) => writeln("Error: {?}", msg)
+};
+
+match safe_divide(10, 0) {
+  Ok(result) => writeln("10 / 0 is {?}.", result),
+  Err(msg) => writeln("Error from division by zero: {?}", msg)
+};

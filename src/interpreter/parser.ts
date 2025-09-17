@@ -47,6 +47,8 @@ import {
   type RecordField,
   WhenExpression,
   WhenExpressionBranch,
+  TupleLiteral,
+  TupleTypeNode,
 } from '@syntax/ast.js';
 
 enum Precedence {
@@ -319,9 +321,23 @@ export class Parser {
       return undefined;
     }
 
+    let alias: Identifier | null = null;
     let exposing: Identifier[] | null = null;
 
+    if (this.peekTokenIs(TokenType.AS)) {
+      this.nextToken();
+      if (!this.expectPeek(TokenType.IDENT)) {
+        this.errors.push(`Expected an alias identifier after 'as'`);
+        return undefined;
+      }
+      alias = new Identifier(this.curToken, this.curToken.literal);
+    }
     if (this.peekTokenIs(TokenType.LPAREN)) {
+      if (alias) {
+        this.errors.push(`Cannot use 'as' and an exposing list '(...)' at the same time.`);
+        return undefined;
+      }
+
       this.nextToken();
       exposing = [];
 
@@ -353,7 +369,7 @@ export class Parser {
       this.nextToken();
     }
 
-    return new UseStatement(stmtToken, path, null, exposing);
+    return new UseStatement(stmtToken, path, alias, exposing);
   }
 
   private parseLetStatement(): LetStatement | undefined {
@@ -365,11 +381,20 @@ export class Parser {
       this.nextToken();
     }
 
-    if (!this.expectPeek(TokenType.IDENT)) return undefined;
-    const name = new Identifier(this.curToken, this.curToken.literal);
+    this.nextToken();
+
+    const name = this.parsePattern();
+    if (!name) {
+      this.errors.push(`Expected an identifier or a pattern on the left side of a let statement.`);
+      return undefined;
+    }
 
     let typeAnnotation: TypeNode | undefined = undefined;
     if (this.peekTokenIs(TokenType.COLON)) {
+      if (!(name instanceof Identifier)) {
+        this.errors.push('Type annotations are not supported for destructuring assignment yet.');
+        return undefined;
+      }
       this.nextToken();
       this.nextToken();
       typeAnnotation = this.parseTypeNode();
@@ -723,33 +748,33 @@ export class Parser {
   }
 
   private parseGroupedExpression(): Expression | undefined {
-    if (this.peekTokenIs(TokenType.RPAREN)) {
-      this.nextToken();
-      return new CallExpression(this.curToken, new Identifier(this.curToken, ''), []);
-    }
-
+    const token = this.curToken;
     this.nextToken();
+
+    if (this.curTokenIs(TokenType.RPAREN)) {
+      return new TupleLiteral(token, []);
+    }
 
     const exp = this.parseExpression(Precedence.LOWEST);
     if (!exp) return undefined;
 
     if (this.peekTokenIs(TokenType.COMMA)) {
-      const args = [exp];
+      const elements = [exp];
       while (this.peekTokenIs(TokenType.COMMA)) {
         this.nextToken();
         this.nextToken();
         const nextExp = this.parseExpression(Precedence.LOWEST);
-        if (!nextExp) return undefined;
-        args.push(nextExp);
+        if (nextExp) {
+          elements.push(nextExp);
+        }
       }
       if (!this.expectPeek(TokenType.RPAREN)) return undefined;
-      return new CallExpression(this.curToken, new Identifier(this.curToken, ''), args);
+      return new TupleLiteral(token, elements);
     }
 
     if (!this.expectPeek(TokenType.RPAREN)) {
       return undefined;
     }
-
     return exp;
   }
 
@@ -1000,12 +1025,14 @@ export class Parser {
     const parameters: Identifier[] = [];
     if (left instanceof Identifier) {
       parameters.push(left);
-    } else if (left instanceof CallExpression && left.func.toString() === '') {
-      for (const arg of left.args) {
+    } else if (left instanceof TupleLiteral) {
+      for (const arg of left.elements) {
         if (arg instanceof Identifier) {
           parameters.push(arg);
         } else {
-          this.errors.push(`Invalid parameter in lambda expression: ${arg.toString()}`);
+          this.errors.push(
+            `Invalid non-identifier parameter in lambda expression: ${arg.toString()}`,
+          );
           return undefined;
         }
       }
@@ -1256,6 +1283,37 @@ export class Parser {
   }
 
   private parseTypeNode(): TypeNode | undefined {
+    if (this.curTokenIs(TokenType.LPAREN)) {
+      const token = this.curToken;
+      const elementTypes: TypeNode[] = [];
+
+      if (this.peekTokenIs(TokenType.RPAREN)) {
+        this.nextToken();
+        return new TupleTypeNode(token, []);
+      }
+
+      this.nextToken();
+
+      const firstType = this.parseTypeNode();
+      if (!firstType) return undefined;
+      elementTypes.push(firstType);
+
+      while (this.peekTokenIs(TokenType.COMMA)) {
+        this.nextToken();
+        this.nextToken();
+        const nextType = this.parseTypeNode();
+        if (!nextType) return undefined;
+        elementTypes.push(nextType);
+      }
+
+      if (!this.expectPeek(TokenType.RPAREN)) {
+        this.errors.push(`Expected ')' to close tuple type, got ${this.peekToken.type}`);
+        return undefined;
+      }
+
+      return new TupleTypeNode(token, elementTypes);
+    }
+
     if (this.curTokenIs(TokenType.FUNCTION)) {
       return this.parseFunctionTypeNode();
     }

@@ -7,6 +7,7 @@ import {
   RecordType,
   STRING_TYPE,
   TypeVariable,
+  ANY_TYPE,
 } from '@syntax/type.js';
 
 const headersType = new HashType(STRING_TYPE, STRING_TYPE);
@@ -44,6 +45,11 @@ const htmlConstructorType = new FunctionType([STRING_TYPE], responseType);
 
 const handlerType = new FunctionType([requestType, paramsType], responseType);
 
+const listenHandlerType = new FunctionType(
+  [INTEGER_TYPE, new FunctionType([], NULL_TYPE), ANY_TYPE],
+  NULL_TYPE,
+);
+
 export const httpTypes = new Map<string, LumenType>([
   ['Request', requestType],
   ['Response', responseType],
@@ -55,5 +61,5 @@ export const httpTypes = new Map<string, LumenType>([
   ['put', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
   ['delete', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
   ['patch', new FunctionType([STRING_TYPE, handlerType], NULL_TYPE)],
-  ['listen', new FunctionType([INTEGER_TYPE, new FunctionType([], NULL_TYPE)], NULL_TYPE)],
+  ['listen', listenHandlerType],
 ]);

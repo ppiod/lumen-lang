@@ -89,7 +89,7 @@ export class Program implements Node {
 export class LetStatement implements Statement {
   constructor(
     public token: Token,
-    public name: Identifier,
+    public name: Pattern,
     public value: Expression,
     public isMutable: boolean,
     public typeAnnotation?: TypeNode,
@@ -745,5 +745,34 @@ export class WhenExpression implements Expression {
   expressionNode(): void {}
   tokenLiteral(): string {
     return this.token.literal;
+  }
+}
+
+export class TupleLiteral implements Expression {
+  constructor(
+    public token: Token,
+    public elements: Expression[],
+  ) {}
+  public expressionNode() {}
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+  public toString(): string {
+    const elements = this.elements.map((e) => e.toString()).join(', ');
+    return `(${elements})`;
+  }
+}
+
+export class TupleTypeNode implements TypeNode {
+  constructor(
+    public token: Token,
+    public elementTypes: TypeNode[],
+  ) {}
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+  public toString(): string {
+    const types = this.elementTypes.map((t) => t.toString()).join(', ');
+    return `(${types})`;
   }
 }

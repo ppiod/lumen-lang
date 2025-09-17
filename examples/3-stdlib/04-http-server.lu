@@ -1,18 +1,135 @@
-// ===================================
-// HTTP Server with Route Parameters
-// ===================================
-use net.http (Response, get, listen);
+// Import all functionalities from the net.http module.
+use net.http (get, post, put, delete, patch, listen, json, html, Response, Request);
+use string;
+use json as Json; // Alias the json module to avoid conflict with the json() function
+use hash;
 
-// Define a route with a dynamic parameter called 'name'.
-get("/users/:name", (req, params) => {
-  // Access the parameter directly. This returns a String or NULL.
-  let userName = params["name"];
+// In-memory "database" for demonstration purposes.
+let mut users = {
+    "1": { "name": "Ryu", "skill": "Hadoken" },
+    "2": { "name": "Ken", "skill": "Shoryuken" }
+};
+let mut nextId = 3;
 
-  Response(200, strFormat("Hello, {?}! Welcome to the server.", userName), {})
+// Route handlers (get, post, etc.) are functions that register a callback
+// to be executed when a matching request is received.
+// They return `Null`.
+//
+// The handler callback always receives two arguments:
+// 1. req: A `Request` record containing request data (`.body`, `.headers`, etc.).
+// 2. params: A `Hash<String, String>` containing URL parameters (e.g., from "/users/:id").
+//
+// All handlers must return a `Response` object.
+
+// [GET] /
+// Used for requesting data. This route returns a simple HTML welcome page.
+get("/", (req, params) => {
+    // `html(body: String) -> Response`
+    // A shortcut to create a Response with status 200 and Content-Type "text/html".
+    html("<h1>Lumen User API</h1><p>Try GET /users</p>")
 });
 
-// Start listening for requests on port 8080.
+// [GET] /users
+// Returns the complete list of users as a JSON object.
+get("/users", (req, params) => {
+    // `json(data: Any) -> Response`
+    // A shortcut that serializes any Lumen value into a JSON string and returns
+    // a Response with status 200 and Content-Type "application/json".
+    json(users)
+});
+
+// [GET] /users/:id
+// Returns a single user by their ID. Demonstrates URL parameters.
+get("/users/:id", (req, params) => {
+    let userId = params["id"];
+    let user = users[userId];
+
+    if user == NULL {
+        // `Response(status: Integer, body: String, headers: Hash) -> Response`
+        // The main constructor for creating a custom HTTP response.
+        // Useful for non-200 status codes like 404 (Not Found).
+        Response(404, strFormat("User with ID {?} not found.", userId), {})
+    } else {
+        json(user)
+    }
+});
+
+// [POST] /users
+// Creates a new user. Demonstrates reading the request body.
+post("/users", (req, params) => {
+    // The `req.body` is a String containing the raw request body.
+    // We use the `Json.parse` function to convert it into a Lumen Hash.
+    match Json.parse(req.body) {
+        Err(msg) => Response(400, strFormat("Bad Request: Invalid JSON - {?}", msg), {}),
+        Ok(data) => {
+            let newId = strFormat("{?}", nextId);
+            users[newId] = { "name": data["name"], "skill": data["skill"] };
+            nextId += 1;
+            json({ "id": newId, "user": data })
+        }
+    }
+});
+
+// [PUT] /users/:id
+// Replaces an entire user resource. Requires all fields.
+put("/users/:id", (req, params) => {
+    let userId = params["id"];
+    if users[userId] == NULL {
+        Response(404, "Not Found", {})
+    } else {
+        match Json.parse(req.body) {
+            Err(msg) => Response(400, strFormat("Bad Request: {?}", msg), {}),
+            Ok(data) => {
+                users[userId] = { "name": data["name"], "skill": data["skill"] };
+                json(users[userId])
+            }
+        }
+    }
+});
+
+// [PATCH] /users/:id
+// Partially updates a user resource. Fields are optional.
+patch("/users/:id", (req, params) => {
+    let userId = params["id"];
+    if users[userId] == NULL {
+        Response(404, "Not Found", {})
+    } else {
+        match Json.parse(req.body) {
+            Err(msg) => Response(400, strFormat("Bad Request: {?}", msg), {}),
+            Ok(data) => {
+                let currentUser = users[userId];
+                if data["name"] != NULL { currentUser["name"] = data["name"] };
+                if data["skill"] != NULL { currentUser["skill"] = data["skill"] };
+                users[userId] = currentUser;
+                json(users[userId])
+            }
+        }
+    }
+});
+
+// [DELETE] /users/:id
+// Deletes a user resource.
+delete("/users/:id", (req, params) => {
+    let userId = params["id"];
+    if users[userId] == NULL {
+        Response(404, "Not Found", {})
+    } else {
+        hash.delete(users, userId); // Correct way to remove an entry from a hash
+        Response(204, "", {}) // 204 No Content is standard for successful deletions
+    }
+});
+
+
+// `listen(port: Integer, callback: fn() -> Null, logger?: Boolean | Hash) -> Null`
+// Starts the HTTP server on the specified port.
+// - port: The port number to listen on.
+// - callback: A function that runs once the server is successfully started.
+// - logger (optional): Pass `true` to enable request logging in the console.
+// This function never returns and will keep the program running.
 listen(8080, () => {
-  writeln("Server is running at http://localhost:8080");
-  writeln("Try accessing http://localhost:8080/users/Piod");
-});
+    writeln("Server is running at http://localhost:8080");
+    writeln("Try accessing the following routes:");
+    writeln("  GET /users");
+    writeln("  GET /users/1");
+    writeln("  POST /users  (with a JSON body like {\"name\":\"Chun-Li\", \"skill\":\"Kikoken\"})");
+}, true); // Enable logger

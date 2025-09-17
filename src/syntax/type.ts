@@ -15,6 +15,7 @@ export enum TypeKind {
   SUM_TYPE = 'SUM_TYPE',
   VARIANT_TYPE = 'VARIANT_TYPE',
   TYPE_VARIABLE = 'TYPE_VARIABLE',
+  TUPLE = 'TUPLE',
   RECORD = 'RECORD',
   TRAIT = 'TRAIT',
   MODULE = 'MODULE',
@@ -58,6 +59,19 @@ export class StringType implements LumenType {
   }
   public toString(): string {
     return 'String';
+  }
+}
+
+export class TupleType implements LumenType {
+  constructor(public elementTypes: LumenType[]) {}
+
+  public kind(): TypeKind {
+    return TypeKind.TUPLE;
+  }
+
+  public toString(): string {
+    const types = this.elementTypes.map((t) => t.toString()).join(', ');
+    return `(${types})`;
   }
 }
 

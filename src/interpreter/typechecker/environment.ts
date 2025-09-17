@@ -132,8 +132,6 @@ export class TypeEnvironment {
   }
 
   public getImplementationsForType(baseTypeName: string): ImplementationBinding[] {
-    const impls = this.implementations.get(baseTypeName) || [];
-    if (this.outer) return impls.concat(this.outer.getImplementationsForType(baseTypeName));
-    return impls;
+    return this.implementations.get(baseTypeName) || [];
   }
 }

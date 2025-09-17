@@ -1,4 +1,4 @@
-import http from 'http';
+import fastify, { FastifyInstance } from 'fastify';
 import { applyFunction } from '@interpreter/evaluator/evaluator.js';
 import type { ModuleLoader } from '../../loader.js';
 import {
@@ -12,6 +12,7 @@ import {
   LumenString,
   NULL,
   type HashPair,
+  LumenBoolean,
 } from '@runtime/objects.js';
 import { createRequestObject } from './objects.js';
 import { httpTypes } from './types.js';
@@ -19,129 +20,13 @@ import { FunctionType } from '@syntax/type.js';
 import type { NativeModule } from '@stdlib/index.js';
 import { stringifyRecursive } from '@stdlib/json/index.js';
 
-interface TrieNode {
-  children: Map<string, TrieNode>;
-  handlers: Map<string, LumenFunction>;
-  paramName: string | null;
-}
+let server: FastifyInstance | null = null;
+const pendingRoutes: any[] = [];
 
-function createTrieNode(): TrieNode {
-  return {
-    children: new Map(),
-    handlers: new Map(),
-    paramName: null,
-  };
-}
-
-class Router {
-  private root = createTrieNode();
-
-  public addRoute(method: string, path: string, handler: LumenFunction) {
-    let currentNode = this.root;
-    const parts = path.split('/').filter((p) => p.length > 0);
-
-    for (const part of parts) {
-      if (part.startsWith(':')) {
-        const paramName = part.substring(1);
-        if (!currentNode.children.has(':param')) {
-          currentNode.children.set(':param', createTrieNode());
-        }
-        currentNode = currentNode.children.get(':param')!;
-        currentNode.paramName = paramName;
-      } else {
-        if (!currentNode.children.has(part)) {
-          currentNode.children.set(part, createTrieNode());
-        }
-        currentNode = currentNode.children.get(part)!;
-      }
-    }
-    currentNode.handlers.set(method, handler);
+function addRoute(method: string, args: LumenObject[], loader: ModuleLoader): LumenObject {
+  if (server) {
+    return new LumenError(`Cannot define new routes after the server has started listening.`);
   }
-
-  public findRoute(
-    method: string,
-    path: string,
-  ): { handler: LumenFunction | undefined; params: Map<string, string> } {
-    let currentNode = this.root;
-    const params = new Map<string, string>();
-    const parts = path.split('/').filter((p) => p.length > 0);
-
-    for (const part of parts) {
-      if (currentNode.children.has(part)) {
-        currentNode = currentNode.children.get(part)!;
-      } else if (currentNode.children.has(':param')) {
-        currentNode = currentNode.children.get(':param')!;
-        if (currentNode.paramName) {
-          params.set(currentNode.paramName, part);
-        }
-      } else {
-        return { handler: undefined, params };
-      }
-    }
-    return { handler: currentNode.handlers.get(method), params };
-  }
-}
-
-const router = new Router();
-let moduleLoaderInstance: ModuleLoader | null = null;
-
-const server = http.createServer((req, res) => {
-  let body = '';
-  req.on('data', (chunk) => {
-    body += chunk.toString();
-  });
-
-  req.on('end', () => {
-    const method = req.method || 'GET';
-    const { handler, params } = router.findRoute(method, req.url || '/');
-
-    if (!handler || !moduleLoaderInstance) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not Found');
-      return;
-    }
-
-    const requestObject = createRequestObject(req, body);
-
-    const paramsPairs = new Map<string, HashPair>();
-    for (const [key, value] of params.entries()) {
-      const lumenKey = new LumenString(key);
-      const lumenValue = new LumenString(value);
-      paramsPairs.set(lumenKey.hashKey(), { key: lumenKey, value: lumenValue });
-    }
-    const paramsHash = new LumenHash(paramsPairs);
-
-    const result = applyFunction(handler, [requestObject, paramsHash], moduleLoaderInstance);
-
-    if (result.type() === 'ERROR') {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end(`Server Error: ${(result as LumenError).message}`);
-    } else if (result instanceof LumenRecord && result.name === 'Response') {
-      const status = (result.fields.get('status') as LumenInteger)?.value || 200;
-      const responseBody = (result.fields.get('body') as LumenString)?.value || '';
-
-      const headersObject: { [key: string]: string } = { 'Content-Type': 'text/plain' };
-      const lumenHeaders = result.fields.get('headers') as LumenHash | undefined;
-      if (lumenHeaders) {
-        for (const { key, value } of lumenHeaders.pairs.values()) {
-          if (key instanceof LumenString && value instanceof LumenString) {
-            headersObject[key.value] = value.value;
-          }
-        }
-      }
-
-      res.writeHead(status, headersObject);
-      res.end(responseBody);
-    } else {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Handler must return a Response object');
-    }
-  });
-});
-
-server.on('error', (e) => console.error('[HTTP Server Error]', e));
-
-function addRoute(method: string, args: LumenObject[]): LumenObject {
   if (args.length !== 2) {
     return new LumenError(`'${method.toLowerCase()}' expects 2 arguments: route and handler`);
   }
@@ -154,7 +39,7 @@ function addRoute(method: string, args: LumenObject[]): LumenObject {
     );
   }
 
-  router.addRoute(method, route.value, handler);
+  pendingRoutes.push({ method, route, handler, loader });
 
   return NULL;
 }
@@ -172,29 +57,95 @@ export const netHttp: NativeModule = {
   ]),
   values: new Map([
     ['Request', NULL],
-    ['get', new LumenBuiltin((loader, ...args) => addRoute('GET', args))],
-    ['post', new LumenBuiltin((loader, ...args) => addRoute('POST', args))],
-    ['put', new LumenBuiltin((loader, ...args) => addRoute('PUT', args))],
-    ['delete', new LumenBuiltin((loader, ...args) => addRoute('DELETE', args))],
-    ['patch', new LumenBuiltin((loader, ...args) => addRoute('PATCH', args))],
+    ['get', new LumenBuiltin((loader, ...args) => addRoute('GET', args, loader))],
+    ['post', new LumenBuiltin((loader, ...args) => addRoute('POST', args, loader))],
+    ['put', new LumenBuiltin((loader, ...args) => addRoute('PUT', args, loader))],
+    ['delete', new LumenBuiltin((loader, ...args) => addRoute('DELETE', args, loader))],
+    ['patch', new LumenBuiltin((loader, ...args) => addRoute('PATCH', args, loader))],
     [
       'listen',
       new LumenBuiltin((loader, ...args) => {
-        moduleLoaderInstance = loader;
-        if (args.length < 1 || !(args[0] instanceof LumenInteger)) {
-          return new LumenError('listen expects an integer port number');
+        if (server) {
+          return new LumenError('Server is already listening.');
         }
-        const port = (args[0] as LumenInteger).value;
-        const callback = args.length > 1 ? (args[1] as LumenFunction) : null;
 
-        server.listen(port, () => {
-          if (callback && callback instanceof LumenFunction) {
+        if (args.length < 2) {
+          return new LumenError('listen expects at least 2 arguments: port and callback');
+        }
+
+        const port = (args[0] as LumenInteger).value;
+        const callback = args[1] as LumenFunction;
+        const options = args[2];
+
+        let useLogger = false;
+        if (options) {
+          if (options instanceof LumenBoolean) {
+            useLogger = options.value;
+          } else if (options instanceof LumenHash) {
+            const loggerOption = options.pairs.get(new LumenString('logger').hashKey());
+            if (loggerOption && loggerOption.value instanceof LumenBoolean) {
+              useLogger = loggerOption.value.value;
+            }
+          }
+        }
+
+        server = fastify({
+          logger: useLogger,
+          routerOptions: {
+            ignoreTrailingSlash: true,
+          },
+        });
+
+        for (const r of pendingRoutes) {
+          server.route({
+            method: r.method.toUpperCase() as any,
+            url: r.route.value,
+            handler: async (request, reply) => {
+              const requestObject = createRequestObject(request);
+              const params = request.params as Record<string, string>;
+              const paramsPairs = new Map<string, HashPair>();
+              for (const [key, value] of Object.entries(params)) {
+                const lumenKey = new LumenString(key);
+                const lumenValue = new LumenString(value);
+                paramsPairs.set(lumenKey.hashKey(), { key: lumenKey, value: lumenValue });
+              }
+              const paramsHash = new LumenHash(paramsPairs);
+              const result = applyFunction(r.handler, [requestObject, paramsHash], r.loader);
+
+              if (result.type() === 'ERROR') {
+                reply.status(500).send(`Server Error: ${(result as LumenError).message}`);
+              } else if (result instanceof LumenRecord && result.name === 'Response') {
+                const status = (result.fields.get('status') as LumenInteger)?.value || 200;
+                const body = (result.fields.get('body') as LumenString)?.value || '';
+                const headersObject: { [key: string]: string } = {};
+                const lumenHeaders = result.fields.get('headers') as LumenHash | undefined;
+                if (lumenHeaders) {
+                  for (const { key, value } of lumenHeaders.pairs.values()) {
+                    if (key instanceof LumenString && value instanceof LumenString) {
+                      headersObject[key.value] = value.value;
+                    }
+                  }
+                }
+                reply.headers(headersObject).status(status).send(body);
+              } else {
+                reply.status(500).send('Handler must return a Response object');
+              }
+            },
+          });
+        }
+
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        server.listen({ port, host: '0.0.0.0' }, (err, _address) => {
+          if (err) {
+            console.error(`[HTTP Server Error]`, err);
+            process.exit(1);
+          }
+          if (callback instanceof LumenFunction) {
             applyFunction(callback, [], loader);
           }
         });
 
         setInterval(() => {}, 1 << 30);
-
         return NULL;
       }),
     ],
@@ -212,7 +163,6 @@ export const netHttp: NativeModule = {
           const status = args[0] as LumenInteger;
           const body = args[1] as LumenString;
           const headers = (args[2] as LumenHash) || new LumenHash(new Map());
-
           const fields = new Map<string, LumenObject>([
             ['status', status],
             ['body', body],
@@ -232,14 +182,11 @@ export const netHttp: NativeModule = {
           }
           const obj = args[0];
           const jsonString = stringifyRecursive(obj, 1);
-
           if (jsonString instanceof Error) {
             return new LumenError(`Failed to serialize object to JSON: ${jsonString.message}`);
           }
-
           const status = new LumenInteger(200);
           const body = new LumenString(jsonString);
-
           const headers = new LumenHash(
             new Map([
               [
@@ -251,7 +198,6 @@ export const netHttp: NativeModule = {
               ],
             ]),
           );
-
           const fields = new Map<string, LumenObject>([
             ['status', status],
             ['body', body],

@@ -6,12 +6,12 @@ import {
   LumenString,
   type HashPair,
 } from '@runtime/objects.js';
-import type http from 'http';
+import { FastifyRequest } from 'fastify';
 
-export function createRequestObject(req: http.IncomingMessage, body: string): LumenRecord {
+export function createRequestObject(request: FastifyRequest): LumenRecord {
   const headersPairs = new Map<string, HashPair>();
-  for (const key in req.headers) {
-    const value = req.headers[key];
+  for (const key in request.headers) {
+    const value = request.headers[key];
     if (typeof value === 'string') {
       const lumenKey = new LumenString(key);
       const lumenValue = new LumenString(value);
@@ -19,11 +19,13 @@ export function createRequestObject(req: http.IncomingMessage, body: string): Lu
     }
   }
 
+  const body = typeof request.body === 'string' ? request.body : JSON.stringify(request.body);
+
   const fields = new Map<string, LumenObject>([
-    ['method', new LumenString(req.method || 'GET')],
-    ['url', new LumenString(req.url || '/')],
+    ['method', new LumenString(request.method)],
+    ['url', new LumenString(request.url)],
     ['headers', new LumenHash(headersPairs)],
-    ['body', new LumenString(body)],
+    ['body', new LumenString(body || '')],
   ]);
   return new LumenRecord('Request', fields);
 }

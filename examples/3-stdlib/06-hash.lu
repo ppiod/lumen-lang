@@ -1,5 +1,5 @@
 // ===================================
-// Hash Operations
+// Hash (Map) Operations
 // ===================================
 // This example demonstrates the usage of the rich standard library for Hashes.
 use hash;

@@ -46,6 +46,6 @@ match new() {
 
         delete("/users/:id", (req, params) => services.handleDelete(repo, params["id"]));
 
-        listen(8080, () => writeln("Server is running at http://localhost:8080"));
+        listen(8080, () => writeln("Server is running at http://localhost:8080"), true);
     }
 }

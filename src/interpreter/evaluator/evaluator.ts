@@ -17,6 +17,7 @@ import {
   LumenSumTypeInstance,
   LumenRecord,
   LumenModule,
+  LumenTuple,
   NULL,
 } from '@runtime/objects.js';
 import { Environment } from './environment.js';
@@ -380,9 +381,14 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
 
     env.mergeImplementations(loaded.evalEnv);
 
-    const moduleObject = new LumenModule(moduleName, loaded.evalEnv);
-    const bindName = node.path.parts[node.path.parts.length - 1].value;
-    env.set(bindName, moduleObject, false);
+    if (node.alias) {
+      const moduleObject = new LumenModule(moduleName, loaded.evalEnv);
+      env.set(node.alias.value, moduleObject, false);
+    } else if (!node.exposing) {
+      const moduleObject = new LumenModule(moduleName, loaded.evalEnv);
+      const bindName = node.path.parts[node.path.parts.length - 1].value;
+      env.set(bindName, moduleObject, false);
+    }
 
     if (node.exposing) {
       for (const exposed of node.exposing) {
@@ -465,14 +471,63 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
       return val;
     }
 
-    env.set(node.name.value, val, node.isMutable);
-    return NULL;
+    if (node.name instanceof ast.TuplePattern) {
+      if (!(val instanceof LumenTuple)) {
+        return new LumenError(
+          `cannot destructure non-tuple value of type ${val.type()}`,
+          node.value,
+        );
+      }
+      const pattern = node.name as ast.TuplePattern;
+      if (pattern.elements.length !== val.elements.length) {
+        return new LumenError(
+          `destructuring mismatch: pattern wants ${pattern.elements.length} elements, tuple has ${val.elements.length}`,
+          node.name,
+        );
+      }
+      pattern.elements.forEach((elem, i) => {
+        if (elem instanceof ast.Identifier) {
+          env.set(elem.value, val.elements[i], node.isMutable);
+        }
+      });
+      return NULL;
+    } else if (node.name instanceof ast.ArrayPattern) {
+      if (!(val instanceof LumenArray)) {
+        return new LumenError(
+          `cannot destructure non-array value of type ${val.type()}`,
+          node.value,
+        );
+      }
+      const pattern = node.name as ast.ArrayPattern;
+
+      for (let i = 0; i < pattern.elements.length; i++) {
+        const elem = pattern.elements[i];
+        const value = val.elements[i] || NULL;
+        env.set(elem.value, value, node.isMutable);
+      }
+
+      if (pattern.rest) {
+        const restElements = val.elements.slice(pattern.elements.length);
+        env.set(pattern.rest.value, new LumenArray(restElements), node.isMutable);
+      }
+      return NULL;
+    } else if (node.name instanceof ast.Identifier) {
+      env.set(node.name.value, val, node.isMutable);
+      return NULL;
+    }
+
+    return new LumenError('unsupported pattern in let statement', node.name);
   }
   if (node instanceof ast.Identifier) return evalIdentifier(node, env);
   if (node instanceof ast.IntegerLiteral) return new LumenInteger(node.value);
   if (node instanceof ast.DoubleLiteral) return new LumenDouble(node.value);
   if (node instanceof ast.BooleanLiteral) return nativeBoolToBooleanObject(node.value);
   if (node instanceof ast.StringLiteral) return new LumenString(node.value);
+  if (node instanceof ast.TupleLiteral) {
+    const elements = evalExpressions(node.elements, env, loader);
+    if (elements.length === 1 && elements[0] instanceof LumenError) return elements[0];
+    return new LumenTuple(elements);
+  }
   if (node instanceof ast.FunctionLiteral) {
     const params = node.parameters;
     const body = node.body;

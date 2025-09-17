@@ -15,6 +15,7 @@ export enum ObjectType {
   FUNCTION = 'FUNCTION',
   ERROR = 'ERROR',
   BUILTIN = 'BUILTIN',
+  TUPLE = 'TUPLE',
   SUM_TYPE_INSTANCE = 'SUM_TYPE_INSTANCE',
   MODULE = 'MODULE',
 }
@@ -235,6 +236,19 @@ export class LumenModule implements LumenObject {
   }
   public inspect(): string {
     return `<module ${this.name}>`;
+  }
+}
+
+export class LumenTuple implements LumenObject {
+  constructor(public elements: LumenObject[]) {}
+
+  public type(): ObjectType {
+    return ObjectType.TUPLE;
+  }
+
+  public inspect(): string {
+    const elements = this.elements.map((e) => e.inspect()).join(', ');
+    return `(${elements})`;
   }
 }
 

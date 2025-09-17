@@ -1,28 +1,40 @@
-// A classic sorting algorithm that repeatedly steps through the list,
-// comparing adjacent elements and swapping them if they are in the
-// wrong order. Passes are repeated until the list is fully sorted.
-let bubble_pass = fn(arr: Array<Integer>) -> Array<Integer> {
+// This function performs a single "pass" of the bubble sort algorithm.
+// It moves the largest element towards the end of the array.
+let bubble_pass = fn(arr: Array<Integer>) -> (Array<Integer>, Boolean) {
     match arr {
+        // An empty or single-element array is already "sorted" for one pass.
+        [] => ([], false),
+        [h] => ([h], false),
+
+        // For lists with at least two elements...
         [h1, h2, ...tail] => {
-            if h1 > h2 {
-                prepend(h2, bubble_pass(prepend(h1, tail)))
+            // First, compare and potentially swap the first two elements.
+            let (first, second, swapped_head) = if h1 > h2 {
+                (h2, h1, true)
             } else {
-                prepend(h1, bubble_pass(prepend(h2, tail)))
-            }
-        },
-        _ => arr
+                (h1, h2, false)
+            };
+            
+            // Then, recursively process the rest of the list, taking the larger
+            // of the first two elements (`second`) along for the next comparison.
+            let (processed_tail, swapped_tail) = bubble_pass(prepend(second, tail));
+
+            // Finally, prepend the smaller element (`first`) to the processed tail
+            // and report if any swap occurred during this entire pass.
+            (prepend(first, processed_tail), swapped_head || swapped_tail)
+        }
     }
 };
 
+// This function repeatedly calls `bubble_pass` until no more swaps occur,
+// which means the list is fully sorted.
 let bubble_sort = fn(arr: Array<Integer>) -> Array<Integer> {
-    let n = len(arr);
-    let loop = fn(current_arr: Array<Integer>, iterations: Integer) -> Array<Integer> {
-        when {
-            | (iterations <= 0) => current_arr,
-            else => loop(bubble_pass(current_arr), iterations - 1)
-        }
+    let loop = fn(current_arr: Array<Integer>) -> Array<Integer> {
+        let (next_arr, swapped) = bubble_pass(current_arr);
+        // If a swap happened, the list might not be fully sorted yet, so loop again.
+        if swapped: loop(next_arr) else: next_arr
     };
-    loop(arr, n)
+    loop(arr)
 };
 
 let unsorted_list = [5, 1, 4, 2, 8, 3, 9, 7, 6];

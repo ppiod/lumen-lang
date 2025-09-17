@@ -18,8 +18,50 @@ import {
   RecordType,
   TraitType,
   ANY_TYPE,
+  TupleType,
 } from '@syntax/type.js';
 import { TypeEnvironment } from './environment.js';
+
+export function isSameType(a: LumenType, b: LumenType): boolean {
+  if (
+    a.kind() === TypeKind.ANY ||
+    b.kind() === TypeKind.ANY ||
+    a.kind() === TypeKind.TYPE_VARIABLE ||
+    b.kind() === TypeKind.TYPE_VARIABLE
+  ) {
+    return true;
+  }
+
+  if (
+    (a.kind() === TypeKind.DOUBLE && b.kind() === TypeKind.INTEGER) ||
+    (a.kind() === TypeKind.INTEGER && b.kind() === TypeKind.DOUBLE)
+  ) {
+    return true;
+  }
+
+  if (a.kind() !== b.kind()) return false;
+  if (a.toString() === b.toString()) return true;
+
+  if (a.kind() === TypeKind.ARRAY && b.kind() === TypeKind.ARRAY) {
+    return isSameType((a as ArrayType).elementType, (b as ArrayType).elementType);
+  }
+  if (a.kind() === TypeKind.HASH && b.kind() === TypeKind.HASH) {
+    const hashA = a as HashType;
+    const hashB = b as HashType;
+    return isSameType(hashA.keyType, hashB.keyType) && isSameType(hashA.valueType, hashB.valueType);
+  }
+  if (a.kind() === TypeKind.FUNCTION && b.kind() === TypeKind.FUNCTION) {
+    const funcA = a as FunctionType;
+    const funcB = b as FunctionType;
+    if (funcA.parameters.length !== funcB.parameters.length) return false;
+    if (!isSameType(funcA.returnType, funcB.returnType)) return false;
+    for (let i = 0; i < funcA.parameters.length; i++) {
+      if (!isSameType(funcA.parameters[i], funcB.parameters[i])) return false;
+    }
+    return true;
+  }
+  return false;
+}
 
 export function getTraitNameFromTypeNode(node: ast.TypeNode): string {
   if (node instanceof ast.GenericTypeNode) {
@@ -58,7 +100,11 @@ export function substitute(
 
   let result: LumenType;
 
-  if (type.kind() === TypeKind.ARRAY) {
+  if (type.kind() === TypeKind.TUPLE) {
+    const tupleType = type as TupleType;
+    const newElementTypes = tupleType.elementTypes.map((et) => substitute(et, substitutions, memo));
+    result = new TupleType(newElementTypes);
+  } else if (type.kind() === TypeKind.ARRAY) {
     const arrType = type as ArrayType;
     const newElementType = substitute(arrType.elementType, substitutions, memo);
     result = new ArrayType(newElementType);
@@ -254,6 +300,18 @@ export function unify(
     return unify(func1.returnType, func2.returnType, substitutions);
   }
 
+  if (finalT1.kind() === TypeKind.TUPLE && finalT2.kind() === TypeKind.TUPLE) {
+    const tuple1 = finalT1 as TupleType;
+    const tuple2 = finalT2 as TupleType;
+    if (tuple1.elementTypes.length !== tuple2.elementTypes.length) return false;
+    for (let i = 0; i < tuple1.elementTypes.length; i++) {
+      if (!unify(tuple1.elementTypes[i], tuple2.elementTypes[i], substitutions)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   return true;
 }
 
@@ -372,6 +430,16 @@ export function typeNodeToLumenType(node: ast.TypeNode, env: TypeEnvironment): L
     const returnType = typeNodeToLumenType(node.returnType, env);
     if (returnType.kind() === TypeKind.ERROR) return returnType;
     return new FunctionType(params, returnType);
+  }
+
+  if (node instanceof ast.TupleTypeNode) {
+    const elementTypes: LumenType[] = [];
+    for (const elNode of node.elementTypes) {
+      const elType = typeNodeToLumenType(elNode, env);
+      if (elType.kind() === TypeKind.ERROR) return elType;
+      elementTypes.push(elType);
+    }
+    return new TupleType(elementTypes);
   }
 
   return new ErrorType('unknown type node');

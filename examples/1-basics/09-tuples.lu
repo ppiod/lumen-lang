@@ -1,0 +1,19 @@
+// Generic function that operates on a tuple
+let swap = fn<A, B>(pair: (A, B)) -> (B, A) {
+  // 1. Destructure the input tuple into two variables, `a` and `b`.
+  let (a, b) = pair;
+  // 2. Return a new tuple with the variables in the swapped order.
+  (b, a)
+};
+
+// Creation and type annotation
+let myPair: (Integer, String) = (10, "Lumen");
+writeln("Original: {?}", myPair);
+
+// Destructuring with 'let'
+let (num, name) = myPair;
+writeln("Number: {?}, Name: {?}", num, name);
+
+// Using the generic function
+let swappedPair = swap(myPair);
+writeln("Swapped: {?}", swappedPair); // Should now correctly print ("Lumen", 10)

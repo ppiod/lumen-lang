@@ -19,6 +19,7 @@
   },
   "type": "module",
   "dependencies": {
-    "bun": "^1.2.22"
+    "bun": "^1.2.22",
+    "fastify": "^5.6.0"
   }
 }
