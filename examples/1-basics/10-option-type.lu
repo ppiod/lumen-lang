@@ -1,0 +1,41 @@
+/*
+ * ===================================
+ * The Option Type
+ * ===================================
+ * The `Option<T>` type is a core Sum Type used to represent a value
+ * that may or may not be present. It is a safer alternative to using `NULL`
+ * for optional values.
+ *
+ * It has two possible states:
+ * - Some(value): Represents the presence of a value.
+ * - None():      Represents the absence of a value.
+ */
+
+// This function takes an optional name and returns a greeting.
+use hash;
+
+let greet = fn(name: Option<String>) -> String {
+    match name {
+        Some(n) => strFormat("Hello, {?}!", n),
+        None() => "Hello, stranger!"
+    }
+};
+
+writeln("--- Greeting with Option<String> ---");
+greet(Some("Lumen")) |> writeln; // Output: Hello, Lumen!
+greet(None()) |> writeln;      // Output: Hello, stranger!
+
+// The `hash.get` standard library function is a perfect example.
+// It returns `Some(value)` if the key exists, and `None()` if it doesn't.
+let scores: Hash<String, Integer> = { "ryu": 9001 };
+
+let getScore = fn(character: String) -> String {
+    match hash.get(scores, character) {
+        Some(score) => strFormat("Score for {?} is {?}.", character, score),
+        None() => strFormat("Could not find a score for {?}.", character)
+    }
+};
+
+writeln("\n--- Using Option with hash.get ---");
+getScore("ryu") |> writeln;    // Output: Score for ryu is 9001.
+getScore("blanka") |> writeln; // Output: Could not find a score for blanka.
