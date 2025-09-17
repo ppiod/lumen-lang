@@ -239,6 +239,14 @@ function evalInfixExpression(
         return nativeBoolToBooleanObject(leftVal === rightVal);
       case '!=':
         return nativeBoolToBooleanObject(leftVal !== rightVal);
+      case '<':
+        return nativeBoolToBooleanObject(leftVal < rightVal);
+      case '<=':
+        return nativeBoolToBooleanObject(leftVal <= rightVal);
+      case '>':
+        return nativeBoolToBooleanObject(leftVal > rightVal);
+      case '>=':
+        return nativeBoolToBooleanObject(leftVal >= rightVal);
       default:
         return new LumenError(`unknown operator: ${left.type()} ${operator} ${right.type()}`, node);
     }

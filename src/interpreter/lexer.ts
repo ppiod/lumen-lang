@@ -37,6 +37,25 @@ export class Lexer {
     return this.input[this.readPosition];
   }
 
+  private skipMultiLineComment(): void {
+    this.readChar();
+    this.readChar();
+
+    while (this.ch !== null) {
+      if (this.ch === '*' && this.peekChar() === '/') {
+        this.readChar();
+        this.readChar();
+        break;
+      }
+
+      if (this.ch === '\n') {
+        this.line++;
+        this.column = 1;
+      }
+      this.readChar();
+    }
+  }
+
   public nextToken(): Token {
     this.skipWhitespace();
 
@@ -51,9 +70,15 @@ export class Lexer {
       return { type, literal, line: startLine, column: startCol };
     };
 
-    if (this.ch === '/' && this.peekChar() === '/') {
-      this.skipComment();
-      return this.nextToken();
+    if (this.ch === '/') {
+      if (this.peekChar() === '/') {
+        this.skipComment();
+        return this.nextToken();
+      }
+      if (this.peekChar() === '*') {
+        this.skipMultiLineComment();
+        return this.nextToken();
+      }
     }
 
     const twoCharOperators = new Map<string, TokenType>([

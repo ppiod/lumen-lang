@@ -19,10 +19,10 @@ export class Environment {
     this.outer = outer;
 
     if (!outer) {
-        this.variantToSumType.set('Ok', 'Result');
-        this.variantToSumType.set('Err', 'Result');
-        this.variantToSumType.set('Some', 'Option');
-        this.variantToSumType.set('None', 'Option');
+      this.variantToSumType.set('Ok', 'Result');
+      this.variantToSumType.set('Err', 'Result');
+      this.variantToSumType.set('Some', 'Option');
+      this.variantToSumType.set('None', 'Option');
     }
   }
 

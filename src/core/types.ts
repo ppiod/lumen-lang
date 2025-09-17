@@ -53,7 +53,6 @@ OPTION_TYPE.variants.set('None', NONE_VARIANT);
 
 builtinTypes.set('Option', OPTION_TYPE);
 
-
 export const builtinConstructors = new Map<string, FunctionType>([
   ['Ok', new FunctionType([T_RESULT], RESULT_TYPE, [T_RESULT, E_RESULT])],
   ['Err', new FunctionType([E_RESULT], RESULT_TYPE, [T_RESULT, E_RESULT])],

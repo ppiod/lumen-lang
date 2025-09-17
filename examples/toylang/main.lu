@@ -1,0 +1,253 @@
+/*
+ * A script by Pedro,
+ * with contributions from Piod.
+*/
+
+use string;
+use hash;
+
+type Expression =
+  | IdentifierNode(String)
+  | IntLit(Integer);
+
+type Statement =
+  | VarStmt(String, Expression);
+
+record Program(statements: Array<Statement>)
+
+type TokenType =
+  | Illegal() | Eof() | Ident(String) | Int(Integer)
+  | Assign() | Semicolon() | Var();
+
+record Token(tokenType: TokenType, literal: String)
+
+record Lexer(
+  source: String, chars: Array<String>, position: Integer,
+  readPosition: Integer, ch: String
+)
+
+record Parser(
+  lexer: Lexer, currentToken: Token, peekToken: Token, errors: Array<String>
+)
+
+let isLetter = fn(ch: String) -> Boolean:
+  "a" <= ch && ch <= "z" || "A" <= ch && ch <= "Z" || ch == "_";
+
+let isDigit = fn(ch: String) -> Boolean:
+  "0" <= ch && ch <= "9";
+
+let substring = fn(s: String, start: Integer, end: Integer) -> String {
+  let chars = string.split(s, "");
+  let loop = fn loop(i: Integer, acc: String) -> String {
+    if i >= end || i >= len(chars): acc else: loop(i + 1, acc + chars[i])
+  };
+  if start >= end || start >= len(s): "" else: loop(start, "")
+};
+
+let readChar = fn(l: Lexer) -> Lexer {
+  let nextChar = if l.readPosition >= len(l.chars): "\0" else: l.chars[l.readPosition];
+  Lexer(l.source, l.chars, l.readPosition, l.readPosition + 1, nextChar)
+};
+
+let skipWhitespace = fn skipWhitespace(l: Lexer) -> Lexer {
+    if l.ch == " " || l.ch == "\t" || l.ch == "\n" || l.ch == "\r":
+        skipWhitespace(readChar(l))
+    else: l
+};
+
+let readIdentifier = fn(l: Lexer) -> (String, Lexer) {
+  let startPos = l.position;
+  let loop = fn loop(current_l: Lexer) -> Lexer {
+    if isLetter(current_l.ch): loop(readChar(current_l)) else: current_l
+  };
+  let final_l = loop(l);
+  (substring(l.source, startPos, final_l.position), final_l)
+};
+
+let readNumber = fn(l: Lexer) -> (String, Lexer) {
+  let startPos = l.position;
+  let loop = fn loop(current_l: Lexer) -> Lexer {
+    if isDigit(current_l.ch): loop(readChar(current_l)) else: current_l
+  };
+  let final_l = loop(l);
+  (substring(l.source, startPos, final_l.position), final_l)
+};
+
+let newLexer = fn(input: String) -> Lexer {
+  let chars = string.split(input, "");
+  let l = Lexer(input, chars, 0, 0, "");
+  readChar(l)
+};
+
+let nextToken = fn(l: Lexer) -> (Token, Lexer) {
+  let currentLexer = skipWhitespace(l);
+  let ch = currentLexer.ch;
+  when {
+    | ch == "=" => (Token(Assign(), ch), readChar(currentLexer)),
+    | ch == ";" => (Token(Semicolon(), ch), readChar(currentLexer)),
+    | ch == "\0" => (Token(Eof(), ""), currentLexer),
+    | isLetter(ch) => {
+        let (literal, new_l) = readIdentifier(currentLexer);
+        let tt = if literal == "var": Var() else: Ident(literal);
+        (Token(tt, literal), new_l)
+    },
+    | isDigit(ch) => {
+        let (literal, new_l) = readNumber(currentLexer);
+        (Token(Int(string.toInteger(literal)), literal), new_l)
+    },
+    else => (Token(Illegal(), ch), readChar(currentLexer))
+  }
+};
+
+let getIntegerValue = fn(tt: TokenType) -> Integer {
+    match tt { Int(val) => val, _ => 0 }
+};
+
+let reverse = fn(arr: Array<Any>) -> Array<Any> {
+    let loop = fn(current: Array<Any>, acc: Array<Any>) -> Array<Any> {
+        match current { [] => acc, [head, ...tail] => loop(tail, prepend(head, acc)) }
+    };
+    loop(arr, [])
+};
+
+let advanceTokens = fn(p: Parser) -> Parser {
+    let (nextTokenValue, nextLexer) = nextToken(p.lexer);
+    Parser(nextLexer, p.peekToken, nextTokenValue, p.errors)
+};
+
+let parseVarStatement = fn(p: Parser) -> (Statement, Parser) {
+    let p_after_var = advanceTokens(p);
+    let identName = p_after_var.currentToken.literal;
+    let p_after_ident = advanceTokens(p_after_var);
+    let p_after_assign = advanceTokens(p_after_ident);
+    let expr = IntLit(getIntegerValue(p_after_assign.currentToken.tokenType));
+    let p_after_expr = advanceTokens(p_after_assign);
+    let p_after_semicolon = advanceTokens(p_after_expr);
+    (VarStmt(identName, expr), p_after_semicolon)
+};
+
+let parseStatement = fn(p: Parser) -> (Statement, Parser) {
+    match p.currentToken.tokenType {
+        Var() => parseVarStatement(p),
+        _ => (VarStmt("dummy", IntLit(0)), advanceTokens(p))
+    }
+};
+
+let newParser = fn(l: Lexer) -> Parser {
+    let (tok1, l1) = nextToken(l);
+    let (tok2, l2) = nextToken(l1);
+    Parser(l2, tok1, tok2, [])
+};
+
+let parseProgram = fn(p: Parser) -> (Program, Parser) {
+    let loop = fn loop(parser_state: Parser, stmts: Array<Statement>) -> (Program, Parser) {
+        match parser_state.currentToken.tokenType {
+            Eof() => (Program(reverse(stmts)), parser_state),
+            _ => {
+                let (stmt, next_parser) = parseStatement(parser_state);
+                loop(next_parser, prepend(stmt, stmts))
+            }
+        }
+    };
+    loop(p, [])
+};
+
+let newEnvironment = fn() -> Hash<String, Any>: {};
+
+let indent = fn(level: Integer) -> String: if level <= 0: "" else: "  " + indent(level - 1)
+let trace = fn(level: Integer, msg: String): writeln(indent(level) + msg);
+
+let evalExpression = fn(expr: Expression, env: Hash<String, Any>, level: Integer) -> Result<Any, String> {
+    trace(level, strFormat("Evaluating Expression: {?}", expr));
+    match expr {
+        IntLit(value) => {
+            trace(level + 1, strFormat("-> Evaluated to Integer: {?}", value));
+            Ok(value)
+        },
+        IdentifierNode(name) => {
+             trace(level + 1, strFormat("-> Looking up Identifier: {?}", name));
+            match hash.get(env, name) {
+                Some(value) => Ok(value),
+                None() => Err(strFormat("identifier not found: {?}", name))
+            }
+        }
+    }
+};
+
+let evalStatement = fn(stmt: Statement, env: Hash<String, Any>, level: Integer) -> Result<Any, String> {
+    trace(level, strFormat("Evaluating Statement: {?}", stmt));
+    match stmt {
+        VarStmt(name, value) => {
+            match evalExpression(value, env, level + 1) {
+                Ok(evaled_value) => {
+                    trace(level + 1, strFormat("-> Storing variable '{?}' with value {?}", name, evaled_value));
+                    hash.set(env, name, evaled_value);
+                    Ok(NULL)
+                },
+                Err(msg) => Err(msg)
+            }
+        }
+    }
+};
+
+let evalProgram = fn(prog: Program, env: Hash<String, Any>) -> Result<Null, String> {
+    let loop = fn loop(list: Array<Statement>) -> Result<Null, String> {
+        match list {
+            [] => Ok(NULL),
+            [head, ...tail] => {
+                match evalStatement(head, env, 1) {
+                    Ok(_) => {
+                        writeln(indent(2) + "Current Env state: " + toString(env));
+                        loop(tail)
+                    },
+                    Err(msg) => Err(msg)
+                }
+            }
+        }
+    };
+    trace(0, "Starting evaluation...");
+    loop(prog.statements)
+};
+
+let main = fn() {
+    let input = "var x = 10;";
+    writeln("Input: '{?}'\n", input);
+    
+    writeln("1. Tokenizing");
+    let l_for_tokens = newLexer(input);
+    let print_tokens_loop = fn print_tokens_loop(l: Lexer) -> Null {
+        let (tok, next_l) = nextToken(l);
+        writeln(indent(1) + toString(tok));
+        if match tok.tokenType { Eof() => true, _ => false }:
+            NULL
+        else:
+            print_tokens_loop(next_l)
+    };
+    print_tokens_loop(l_for_tokens);
+
+    writeln("\n2. Parsing");
+    let l_for_parser = newLexer(input);
+    let p = newParser(l_for_parser);
+    let (program, final_parser) = parseProgram(p);
+
+    match final_parser.errors {
+        [] => {
+            writeln(indent(1) + toString(program));
+            writeln("\n3. Evaluating");
+            let env = newEnvironment();
+            match evalProgram(program, env) {
+                Ok(_) => {
+                    writeln("\nFinal Environment:");
+                    writeln(indent(1) + toString(env));
+                },
+                Err(msg) => {
+                    writeln("Evaluation Error:");
+                    writeln(indent(1) + msg);
+                }
+            }
+        },
+        _ => writeln("Encountered parsing errors.")
+    }
+};
+
+main();
