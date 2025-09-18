@@ -33,7 +33,15 @@ let myString: String = "This is a text.";
 let names: Array<String> = ["Ana", "Bia", "Clara"];
 
 // Hashes (or maps) are collections of key-value pairs.
-let scores: Hash<String, Integer> = { "Ana": 10, "Bia": 9, "Clara": 10 };
+let scores = { "Ana": 10, "Bia": 9, "Clara": 10 };
+
+// Lumen also supports a cleaner, JavaScript-like syntax for hashes.
+// Note: This only works when the key is a simple identifier (no spaces or special characters).
+// For more complex keys like "user-id", you must still use quotes: { "user-id": 123 }.
+let hash: Hash<String, String> = { name: "Piod", lang: "Lumen" };
 
 writeln("\nAn Array of names:", names);
 writeln("A score from the Hash:", scores["Ana"]);
+
+// You can access hash values using dot-notation (for simple keys) or bracket-notation.
+writeln("{?}, {?}", hash.name, hash["lang"]);

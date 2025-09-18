@@ -233,6 +233,17 @@ export function checkMemberAccessExpression(
       return fieldType;
     }
   }
+  
+  if (objectType.kind() === TypeKind.HASH) {
+    const hashType = objectType as HashType;
+    if (hashType.keyType.kind() !== TypeKind.STRING) {
+      return new ErrorType(
+        `dot notation access is only supported for hashes with String keys, but this hash has keys of type ${hashType.keyType.toString()}`,
+        node.property,
+      );
+    }
+    return hashType.valueType;
+  }
 
   if (objectType.kind() === TypeKind.TYPE_VARIABLE) {
     const traitsToCheck = (objectType as TypeVariable).bounds;

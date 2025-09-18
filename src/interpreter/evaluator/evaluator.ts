@@ -370,7 +370,9 @@ function evalHashIndexExpression(
     return new LumenError(`unusable as hash key: ${index.type()}`, node.index);
   }
   const pair = hash.pairs.get(key.hashKey());
-  if (!pair) return NULL;
+  
+  if (!pair) return new LumenError(`key not found in hash: ${index.inspect()}`, node);
+  
   return pair.value;
 }
 
@@ -683,6 +685,20 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
       if (value) {
         return value;
       }
+    }
+
+    if (object.type() === ObjectType.HASH) {
+      const hash = object as LumenHash;
+      const key = new LumenString(propertyName);
+      const pair = hash.pairs.get(key.hashKey());
+
+      if (!pair) {
+        return new LumenError(
+          `hash does not have property '${propertyName}'`,
+          node.property
+        );
+      }
+      return pair.value;
     }
 
     let typeName = object.type().toString();

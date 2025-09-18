@@ -236,7 +236,13 @@ export class Parser {
     while (!this.peekTokenIs(TokenType.RBRACE)) {
       this.nextToken();
 
-      const key = this.parseExpression(Precedence.ANNOTATE);
+      let key: Expression | undefined;
+      if (this.curTokenIs(TokenType.IDENT)) {
+        key = new StringLiteral(this.curToken, this.curToken.literal);
+      } else {
+        key = this.parseExpression(Precedence.ANNOTATE);
+      }
+
       if (!key) {
         return undefined;
       }
