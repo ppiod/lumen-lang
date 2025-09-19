@@ -23,7 +23,7 @@ export const datetimeModule: NativeModule = {
       new LumenBuiltin((loader, ...args) => {
         if (args.length !== 1 || !(args[0] instanceof LumenInteger)) {
           return new LumenError(
-            'A função sleep espera 1 argumento do tipo Integer (milissegundos).',
+            'The sleep function expects 1 argument of type Integer (milliseconds).',
           );
         }
         syncSleep(args[0].value);
