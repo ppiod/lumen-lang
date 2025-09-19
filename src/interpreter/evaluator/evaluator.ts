@@ -864,6 +864,9 @@ function evalMatchExpression(
         const restElements = array.elements.slice(pattern.elements.length);
         armEnv.set(pattern.rest.value, new LumenArray(restElements), true);
       }
+    } else if (arm.pattern instanceof ast.Identifier) {
+      isMatch = true;
+      armEnv.set(arm.pattern.value, value, true);
     } else {
       const patternValue = Eval(arm.pattern, env, loader);
       if (patternValue instanceof LumenError) return patternValue;

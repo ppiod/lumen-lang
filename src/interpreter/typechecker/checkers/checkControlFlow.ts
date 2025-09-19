@@ -149,6 +149,9 @@ export function checkMatchExpression(
         if (pattern.rest) {
           armEnv.set(pattern.rest.value, arrayType, false);
         }
+      } else if (arm.pattern instanceof ast.Identifier) {
+        const pattern = arm.pattern;
+        armEnv.set(pattern.value, arrayType, false);
       } else if (!(arm.pattern instanceof ast.WildcardPattern)) {
         return new ErrorType(
           `invalid pattern for Array type: ${arm.pattern.toString()}`,
