@@ -9,7 +9,6 @@ let message = if number > 5 {
 } else {
   "Number is 5 or less"
 };
-
 writeln(message);
 
 // ===================================
@@ -32,3 +31,37 @@ let cmdB = Error("File not found");
 
 writeln(handleCommand(cmdA));
 writeln(handleCommand(cmdB));
+
+// ===================================
+// 3. Match Expressions (with Literals) - NEW!
+// ===================================
+// 'match' can also be used to match against literal values
+// like Strings, Integers, and Booleans.
+
+// -- String Example --
+let fruit = "apple";
+let fruitColor = match fruit {
+    "apple" => "red or green",
+    "banana" => "yellow",
+    "orange" => "orange",
+    _ => "I don't know!"
+};
+writeln("\nThe color of an apple is: ", fruitColor);
+
+// -- Integer Example --
+let httpStatus = 404;
+let statusMessage = match httpStatus {
+    200 => "OK",
+    404 => "Not Found",
+    500 => "Internal Server Error",
+    _ => "Unknown status code"
+};
+writeln("HTTP 404 means: ", statusMessage);
+
+// -- Boolean Example --
+let isReady = true;
+let stateDescription = match isReady {
+    true => "The system is ready.",
+    false => "The system is not ready."
+};
+writeln(stateDescription);

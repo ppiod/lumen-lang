@@ -172,6 +172,42 @@ export function checkMatchExpression(
         );
       }
     }
+  } else if (
+    valueType.kind() === TypeKind.STRING ||
+    valueType.kind() === TypeKind.INTEGER ||
+    valueType.kind() === TypeKind.DOUBLE ||
+    valueType.kind() === TypeKind.BOOLEAN
+  ) {
+    for (const arm of node.arms) {
+      const armEnv = new TypeEnvironment(env);
+
+      if (!(arm.pattern instanceof ast.WildcardPattern)) {
+        const patternType = check(arm.pattern, armEnv, loader, valueType);
+        if (patternType.kind() === TypeKind.ERROR) return patternType;
+        if (!isSameType(valueType, patternType)) {
+          return new ErrorType(
+            `This pattern has type ${patternType.toString()}, but the match is on a value of type ${valueType.toString()}.`,
+            arm.pattern,
+          );
+        }
+      }
+
+      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
+      const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
+      if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
+
+      if (!firstArmType) {
+        firstArmType = armBodyType;
+      } else if (!unify(firstArmType, armBodyType, substitutions)) {
+        return new ErrorType(
+          `match arms must have the same type. Expected ${substitute(
+            firstArmType,
+            substitutions,
+          ).toString()} but got ${armBodyType.toString()}`,
+          arm.body,
+        );
+      }
+    }
   } else {
     return new ErrorType(
       `match expressions are not supported for type ${valueType.toString()}`,

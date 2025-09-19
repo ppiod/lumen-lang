@@ -864,6 +864,22 @@ function evalMatchExpression(
         const restElements = array.elements.slice(pattern.elements.length);
         armEnv.set(pattern.rest.value, new LumenArray(restElements), true);
       }
+    } else {
+      const patternValue = Eval(arm.pattern, env, loader);
+      if (patternValue instanceof LumenError) return patternValue;
+
+      const comparison = evalInfixExpression(
+        '==',
+        value,
+        patternValue,
+        env,
+        loader,
+        new ast.InfixExpression(arm.pattern.token, node.values[0], '==', arm.pattern as ast.Expression),
+      );
+
+      if (comparison instanceof LumenBoolean && comparison.value) {
+        isMatch = true;
+      }
     }
 
     if (isMatch) {

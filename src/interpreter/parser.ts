@@ -1177,6 +1177,8 @@ export class Parser {
     return path;
   }
 
+
+
   private parsePattern(): Pattern | undefined {
     if (this.curTokenIs(TokenType.LPAREN)) {
       const token = this.curToken;
@@ -1227,9 +1229,9 @@ export class Parser {
       return this.parseArrayPattern();
     }
 
-    const literalExpr = this.parseExpression(Precedence.LOWEST);
+    const literalExpr = this.parseExpression(Precedence.ASSIGN);
     if (literalExpr) {
-      return literalExpr as Expression;
+      return literalExpr;
     }
 
     this.errors.push(`Unexpected token in pattern: ${this.curToken.type}`);
