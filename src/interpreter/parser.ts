@@ -50,6 +50,7 @@ import {
   TupleLiteral,
   TupleTypeNode,
   InterpolatedStringLiteral,
+  ActivePatternDeclarationStatement,
 } from '@syntax/ast.js';
 
 enum Precedence {
@@ -102,6 +103,7 @@ export class Parser {
   private lexer: Lexer;
   private curToken: Token;
   private peekToken: Token;
+  private peekPeekToken: Token;
   public errors: string[] = [];
   private prefixParseFns: Partial<Record<TokenType, prefixParseFn>>;
   private infixParseFns: Partial<Record<TokenType, infixParseFn>>;
@@ -110,6 +112,7 @@ export class Parser {
     this.lexer = lexer;
     this.curToken = { type: TokenType.ILLEGAL, literal: '', line: 0, column: 0 };
     this.peekToken = { type: TokenType.ILLEGAL, literal: '', line: 0, column: 0 };
+    this.peekPeekToken = { type: TokenType.ILLEGAL, literal: '', line: 0, column: 0 };
 
     this.prefixParseFns = {};
     this.registerPrefix(TokenType.IDENT, this.parseIdentifier.bind(this));
@@ -155,11 +158,13 @@ export class Parser {
 
     this.nextToken();
     this.nextToken();
+    this.nextToken();
   }
 
   private nextToken(): void {
     this.curToken = this.peekToken;
-    this.peekToken = this.lexer.nextToken();
+    this.peekToken = this.peekPeekToken;
+    this.peekPeekToken = this.lexer.nextToken();
   }
 
   public parseProgram(): Program {
@@ -380,8 +385,13 @@ export class Parser {
     return new UseStatement(stmtToken, path, alias, exposing);
   }
 
-  private parseLetStatement(): LetStatement | undefined {
+  private parseLetStatement(): Statement | undefined {
     const stmtToken = this.curToken;
+
+    if (this.peekTokenIs(TokenType.LPAREN) && this.peekPeekToken.type === TokenType.BAR) {
+      this.nextToken();
+      return this.parseActivePatternDeclaration(stmtToken);
+    }
 
     let isMutable = false;
     if (this.peekTokenIs(TokenType.MUT)) {
@@ -418,6 +428,68 @@ export class Parser {
     if (this.peekTokenIs(TokenType.SEMICOLON)) this.nextToken();
 
     return new LetStatement(stmtToken, name, value, isMutable, typeAnnotation);
+  }
+
+  private parseActivePatternDeclaration(letToken: Token): Statement | undefined {
+    this.nextToken();
+
+    const cases: Identifier[] = [];
+
+    if (this.peekTokenIs(TokenType.RPAREN)) {
+      this.errors.push('Active pattern declaration must contain at least one case.');
+      return undefined;
+    }
+
+    this.nextToken();
+    if (!this.curTokenIs(TokenType.IDENT)) {
+      this.errors.push(`Expected identifier after '(|', got ${this.curToken.literal}`);
+      return undefined;
+    }
+    cases.push(new Identifier(this.curToken, this.curToken.literal));
+
+    while (this.peekTokenIs(TokenType.BAR)) {
+      this.nextToken();
+      this.nextToken();
+
+      if (this.curTokenIs(TokenType.RPAREN)) {
+        break;
+      }
+
+      if (!this.curTokenIs(TokenType.IDENT)) {
+        this.errors.push(`Expected identifier after '|', got ${this.curToken.literal}`);
+        return undefined;
+      }
+      cases.push(new Identifier(this.curToken, this.curToken.literal));
+    }
+
+    if (!this.curTokenIs(TokenType.RPAREN)) {
+      this.nextToken();
+    }
+    if (!this.curTokenIs(TokenType.RPAREN)) {
+      this.errors.push(`Expected ')' to close active pattern, but got ${this.curToken.literal}`);
+      return undefined;
+    }
+
+    if (!this.expectPeek(TokenType.ASSIGN)) {
+      return undefined;
+    }
+
+    if (!this.expectPeek(TokenType.FUNCTION)) {
+      this.errors.push('Active pattern must be assigned a function literal.');
+      return undefined;
+    }
+
+    const patternFunction = this.parseFunctionLiteral();
+    if (!patternFunction || !(patternFunction instanceof FunctionLiteral)) {
+      this.errors.push('Failed to parse active pattern function.');
+      return undefined;
+    }
+
+    if (this.peekTokenIs(TokenType.SEMICOLON)) {
+      this.nextToken();
+    }
+
+    return new ActivePatternDeclarationStatement(letToken, cases, patternFunction);
   }
 
   private parseReturnStatement(): ReturnStatement | undefined {

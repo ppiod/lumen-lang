@@ -16,6 +16,7 @@ import { TypeEnvironment } from '../environment.js';
 import { ModuleLoader } from '../../../loader.js';
 import { checkFunctionLiteral } from './checkExpressions.js';
 import { substitute, typeNodeToLumenType, unify } from '../utils.js';
+import { check } from '../typechecker.js';
 
 export function checkRecordDeclaration(
   node: ast.RecordDeclarationStatement,
@@ -249,6 +250,40 @@ export function checkTypeDeclaration(
     const variantType = new VariantType(variantName, variantParamTypes, sumType);
     sumType.variants.set(variantName, variantType);
     env.set(variantName, variantType, false);
+  }
+
+  return NULL_TYPE;
+}
+
+export function checkActivePatternDeclarationStatement(
+  node: ast.ActivePatternDeclarationStatement,
+  env: TypeEnvironment,
+  loader: ModuleLoader,
+): LumenType {
+  const funcType = check(node.patternFunction, env, loader);
+
+  if (funcType.kind() !== TypeKind.FUNCTION) {
+    return new ErrorType('Active pattern must be a function', node.patternFunction);
+  }
+
+  const patternFuncType = funcType as FunctionType;
+
+  if (patternFuncType.parameters.length !== 1) {
+    return new ErrorType(
+      `Active pattern function must accept exactly one argument, but it accepts ${patternFuncType.parameters.length}`,
+      node.patternFunction,
+    );
+  }
+
+  if (patternFuncType.returnType.kind() !== TypeKind.SUM_TYPE) {
+    return new ErrorType(
+      `Active pattern function must return a SumType, but it returns ${patternFuncType.returnType.toString()}`,
+      node.patternFunction,
+    );
+  }
+
+  for (const caseIdent of node.cases) {
+    env.setActivePatternType(caseIdent.value, patternFuncType);
   }
 
   return NULL_TYPE;

@@ -12,6 +12,7 @@ import {
 import { TypeEnvironment } from './environment.js';
 import { ModuleLoader } from '../../loader.js';
 import {
+  checkActivePatternDeclarationStatement,
   checkImplementationStatement,
   checkRecordDeclaration,
   checkTraitDeclaration,
@@ -69,6 +70,8 @@ export function check(
   if (node instanceof ast.TypeDeclarationStatement) return checkTypeDeclaration(node, env);
   if (node instanceof ast.RecordDeclarationStatement) return checkRecordDeclaration(node, env);
   if (node instanceof ast.TraitDeclarationStatement) return checkTraitDeclaration(node, env);
+  if (node instanceof ast.ActivePatternDeclarationStatement)
+    return checkActivePatternDeclarationStatement(node, env, loader);
   if (node instanceof ast.ImplementationStatement)
     return checkImplementationStatement(node, env, loader);
   if (node instanceof ast.LetStatement) return checkLetStatement(node, env, loader);

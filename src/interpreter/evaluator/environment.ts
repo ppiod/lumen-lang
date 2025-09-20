@@ -9,6 +9,7 @@ export class Environment {
   private store: Map<string, ValueBinding>;
   public variantToSumType: Map<string, string>;
   private implementations: Map<string, Map<string, LumenFunction>>;
+  private activePatterns: Map<string, LumenFunction>;
   private outer: Environment | null;
   public exposedNames: Set<string> | undefined = undefined;
 
@@ -16,6 +17,7 @@ export class Environment {
     this.store = new Map();
     this.variantToSumType = outer ? outer.variantToSumType : new Map();
     this.implementations = outer ? outer.implementations : new Map();
+    this.activePatterns = outer ? outer.activePatterns : new Map();
     this.outer = outer;
 
     if (!outer) {
@@ -94,6 +96,21 @@ export class Environment {
     }
     if (this.outer) {
       return this.outer.getMethod(typeName, methodName);
+    }
+    return undefined;
+  }
+
+  public setActivePattern(caseName: string, func: LumenFunction): void {
+    this.activePatterns.set(caseName, func);
+  }
+
+  public getActivePattern(caseName: string): LumenFunction | undefined {
+    const pattern = this.activePatterns.get(caseName);
+    if (pattern) {
+      return pattern;
+    }
+    if (this.outer) {
+      return this.outer.getActivePattern(caseName);
     }
     return undefined;
   }

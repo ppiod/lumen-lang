@@ -2,6 +2,7 @@ import * as ast from '@syntax/ast.js';
 import { substitute, typeNodeToLumenType, unify } from './utils.js';
 import type { FunctionType, LumenType, RecordType, SumType, TraitType } from '@syntax/type.js';
 import { TypeKind, TypeVariable } from '@syntax/type.js';
+import { LumenFunction } from '@runtime/objects.js';
 
 export interface ImplementationBinding {
   impl: ast.ImplementationStatement;
@@ -17,6 +18,7 @@ export class TypeEnvironment {
   private store: Map<string, TypeBinding>;
   public constructors: Map<string, FunctionType>;
   public implementations: Map<string, ImplementationBinding[]>;
+  private activePatterns: Map<string, FunctionType>;
   private outer: TypeEnvironment | null;
   public exposedNames: Set<string> | undefined = undefined;
   public currentFunctionReturnType?: LumenType;
@@ -25,6 +27,7 @@ export class TypeEnvironment {
     this.store = new Map();
     this.constructors = outer ? outer.constructors : new Map();
     this.implementations = outer ? outer.implementations : new Map();
+    this.activePatterns = outer ? outer.activePatterns : new Map();
     this.outer = outer;
     this.currentFunctionReturnType = outer ? outer.currentFunctionReturnType : undefined;
   }
@@ -133,5 +136,20 @@ export class TypeEnvironment {
 
   public getImplementationsForType(baseTypeName: string): ImplementationBinding[] {
     return this.implementations.get(baseTypeName) || [];
+  }
+
+  public setActivePatternType(caseName: string, funcType: FunctionType): void {
+    this.activePatterns.set(caseName, funcType);
+  }
+
+  public getActivePatternType(caseName: string): FunctionType | undefined {
+    const patternType = this.activePatterns.get(caseName);
+    if (patternType) {
+      return patternType;
+    }
+    if (this.outer) {
+      return this.outer.getActivePatternType(caseName);
+    }
+    return undefined;
   }
 }

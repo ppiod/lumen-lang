@@ -65,23 +65,59 @@ export function checkMatchExpression(
   let firstArmType: LumenType | undefined = undefined;
   const substitutions = new Map<string, LumenType>();
 
-  if (valueType.kind() === TypeKind.SUM_TYPE) {
-    const sumType = valueType as SumType;
-    const coveredVariants = new Set<string>();
-    let hasWildcard = false;
+  for (const arm of node.arms) {
+    const armEnv = new TypeEnvironment(env);
+    let armProcessed = false;
 
-    const sumTypeBinding = env.get(sumType.name);
-    if (!sumTypeBinding || sumTypeBinding.type.kind() !== TypeKind.SUM_TYPE) {
-      return new ErrorType(`Could not find definition for type ${sumType.name}`, valueNode);
+    if (arm.pattern instanceof ast.WildcardPattern) {
+      armProcessed = true;
+    } else if (arm.pattern instanceof ast.VariantPattern) {
+      const pattern = arm.pattern;
+      const caseName = pattern.path.value;
+      const activePatternType = env.getActivePatternType(caseName);
+
+      if (activePatternType) {
+        armProcessed = true;
+        const inputParamType = activePatternType.parameters[0];
+        if (!unify(inputParamType, valueType, new Map())) {
+          return new ErrorType(
+            `Pattern ${caseName} expects an input of type ${inputParamType.toString()}, but is matching on a value of type ${valueType.toString()}`,
+            valueNode,
+          );
+        }
+
+        const returnSumType = activePatternType.returnType as SumType;
+        const variantType = returnSumType.variants.get(caseName);
+
+        if (!variantType) {
+          return new ErrorType(
+            `The function for active pattern '${caseName}' returns type '${returnSumType.toString()}', which does not have a variant named '${caseName}'`,
+            pattern,
+          );
+        }
+
+        if (variantType.parameters.length !== pattern.parameters.length) {
+          return new ErrorType(
+            `Pattern case '${caseName}' expects ${variantType.parameters.length} arguments, but pattern provides ${pattern.parameters.length}`,
+            pattern,
+          );
+        }
+
+        pattern.parameters.forEach((param, i) => {
+          armEnv.set(param.value, variantType.parameters[i], false);
+        });
+      }
     }
-    const sumTypeDef = sumTypeBinding.type as SumType;
 
-    for (const arm of node.arms) {
-      const armEnv = new TypeEnvironment(env);
+    if (!armProcessed && valueType.kind() === TypeKind.SUM_TYPE) {
+      const sumType = valueType as SumType;
+      const sumTypeBinding = env.get(sumType.name);
+      if (!sumTypeBinding || sumTypeBinding.type.kind() !== TypeKind.SUM_TYPE) {
+        return new ErrorType(`Could not find definition for type ${sumType.name}`, valueNode);
+      }
+      const sumTypeDef = sumTypeBinding.type as SumType;
 
-      if (arm.pattern instanceof ast.WildcardPattern) {
-        hasWildcard = true;
-      } else if (arm.pattern instanceof ast.VariantPattern) {
+      if (arm.pattern instanceof ast.VariantPattern) {
         const pattern = arm.pattern;
         const variantName = pattern.path.value;
         const genericVariantType = sumTypeDef.variants.get(variantName);
@@ -98,49 +134,14 @@ export function checkMatchExpression(
             `variant ${variantName} expects ${variantType.parameters.length} parameters, but pattern provides ${pattern.parameters.length}`,
             pattern,
           );
-        coveredVariants.add(variantName);
         pattern.parameters.forEach((param, i) => {
           const paramType = variantType.parameters[i];
           armEnv.set(param.value, paramType, false);
         });
-      } else if (arm.pattern instanceof ast.ArrayPattern) {
-        return new ErrorType('Array patterns cannot be used to match a custom type.', arm.pattern);
-      } else {
-        return new ErrorType(`Unsupported pattern type in match for ${sumType.name}`, arm.pattern);
       }
-
-      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
-      const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
-      if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
-
-      if (!firstArmType) {
-        firstArmType = armBodyType;
-      } else if (!unify(firstArmType, armBodyType, substitutions)) {
-        return new ErrorType(
-          `match arms must have the same type. Expected ${substitute(
-            firstArmType,
-            substitutions,
-          ).toString()} but got ${armBodyType.toString()}`,
-          arm.body,
-        );
-      }
-    }
-
-    const allVariants = new Set(sumTypeDef.variants.keys());
-    if (!hasWildcard && coveredVariants.size < allVariants.size) {
-      const missing = [...allVariants].filter((v) => !coveredVariants.has(v));
-      return new ErrorType(
-        `match is not exhaustive. Missing patterns: ${missing.join(', ')}`,
-        node,
-      );
-    }
-  } else if (valueType.kind() === TypeKind.ARRAY) {
-    const arrayType = valueType as ArrayType;
-    const elementType = arrayType.elementType;
-
-    for (const arm of node.arms) {
-      const armEnv = new TypeEnvironment(env);
-
+    } else if (!armProcessed && valueType.kind() === TypeKind.ARRAY) {
+      const arrayType = valueType as ArrayType;
+      const elementType = arrayType.elementType;
       if (arm.pattern instanceof ast.ArrayPattern) {
         const pattern = arm.pattern;
         pattern.elements.forEach((el) => {
@@ -158,32 +159,10 @@ export function checkMatchExpression(
           arm.pattern,
         );
       }
-
-      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
-      const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
-      if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
-
-      if (!firstArmType) {
-        firstArmType = armBodyType;
-      } else if (!unify(firstArmType, armBodyType, substitutions)) {
-        return new ErrorType(
-          `match arms must have the same type. Expected ${substitute(
-            firstArmType,
-            substitutions,
-          ).toString()} but got ${armBodyType.toString()}`,
-          arm.body,
-        );
-      }
-    }
-  } else if (
-    valueType.kind() === TypeKind.STRING ||
-    valueType.kind() === TypeKind.INTEGER ||
-    valueType.kind() === TypeKind.DOUBLE ||
-    valueType.kind() === TypeKind.BOOLEAN
-  ) {
-    for (const arm of node.arms) {
-      const armEnv = new TypeEnvironment(env);
-
+    } else if (!armProcessed && (valueType.kind() === TypeKind.STRING ||
+      valueType.kind() === TypeKind.INTEGER ||
+      valueType.kind() === TypeKind.DOUBLE ||
+      valueType.kind() === TypeKind.BOOLEAN)) {
       if (!(arm.pattern instanceof ast.WildcardPattern)) {
         const patternType = check(arm.pattern, armEnv, loader, valueType);
         if (patternType.kind() === TypeKind.ERROR) return patternType;
@@ -194,28 +173,50 @@ export function checkMatchExpression(
           );
         }
       }
+    }
 
-      const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
-      const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
-      if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
+    const expectedArmType = firstArmType ? substitute(firstArmType, substitutions) : expectedType;
+    const armBodyType = check(arm.body, armEnv, loader, expectedArmType);
+    if (armBodyType.kind() === TypeKind.ERROR) return armBodyType;
 
-      if (!firstArmType) {
-        firstArmType = armBodyType;
-      } else if (!unify(firstArmType, armBodyType, substitutions)) {
-        return new ErrorType(
-          `match arms must have the same type. Expected ${substitute(
-            firstArmType,
-            substitutions,
-          ).toString()} but got ${armBodyType.toString()}`,
-          arm.body,
-        );
+    if (!firstArmType) {
+      firstArmType = armBodyType;
+    } else if (!unify(firstArmType, armBodyType, substitutions)) {
+      return new ErrorType(
+        `match arms must have the same type. Expected ${substitute(
+          firstArmType,
+          substitutions,
+        ).toString()} but got ${armBodyType.toString()}`,
+        arm.body,
+      );
+    }
+  }
+
+  if (valueType.kind() === TypeKind.SUM_TYPE) {
+    const sumType = valueType as SumType;
+    const coveredVariants = new Set<string>();
+    let hasWildcard = false;
+    for (const arm of node.arms) {
+      if (arm.pattern instanceof ast.WildcardPattern) {
+        hasWildcard = true;
+        break;
+      }
+      if (arm.pattern instanceof ast.VariantPattern) {
+        coveredVariants.add(arm.pattern.path.value);
       }
     }
-  } else {
-    return new ErrorType(
-      `match expressions are not supported for type ${valueType.toString()}`,
-      valueNode,
-    );
+    const sumTypeBinding = env.get(sumType.name);
+    if (sumTypeBinding && sumTypeBinding.type.kind() === TypeKind.SUM_TYPE) {
+        const sumTypeDef = sumTypeBinding.type as SumType;
+        const allVariants = new Set(sumTypeDef.variants.keys());
+        if (!hasWildcard && coveredVariants.size < allVariants.size) {
+            const missing = [...allVariants].filter((v) => !coveredVariants.has(v));
+            return new ErrorType(
+                `match is not exhaustive. Missing patterns: ${missing.join(', ')}`,
+                node,
+            );
+        }
+    }
   }
 
   return firstArmType ? substitute(firstArmType, substitutions) : NULL_TYPE;

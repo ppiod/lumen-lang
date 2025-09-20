@@ -14,7 +14,7 @@ type Action =
 // Implements the 'Describe' behavior for our 'Character' record.
 impl Describe for Character {
   fn describe(self) -> String {
-    strFormat("{?} is level {?}", self.name, self.level)
+    $"'{self.name}' is level {self.level}"
   }
 }
 
@@ -22,7 +22,7 @@ impl Describe for Character {
 impl Describe for Action {
   fn describe(self) -> String {
     match self {
-      Attack(damage) => strFormat("An attack for {?} damage!", damage),
+      Attack(damage) => $"An attack for {damage} damage!",
       Defend() => "A defensive stance."
     }
   }
@@ -48,7 +48,7 @@ let countdown = fn countdown(n: Integer) -> Null {
 let processFirstAction = fn(actions: Array<Action>) -> String {
     match actions {
         [] => "No actions to process.",
-        [head, ...tail] => strFormat("Processing: {?}. Remaining: {?}.", head.describe(), len(tail))
+        [head, ...tail] => $"Processing: {head.describe()}. Remaining: {len(tail)}."
     }
 };
 
@@ -62,13 +62,13 @@ printDescription(hero);
 
 // Using an if/else expression to determine a value.
 let status = if hero.level > 5 { "Veteran" } else { "Rookie" };
-strFormat("Status: {?}", status) |> writeln;
+writeln($"Status: {status}");
 
 // Using the pipe operator and lambdas to chain actions.
 let action = Attack(99);
 action
     |> (act) => act.describe()
-    |> (desc) => strFormat("Action confirmed: {?}.", desc)
+    |> (desc) => $"Action confirmed: {desc}."
     |> writeln;
 
 // Calling the recursive function.
@@ -86,7 +86,7 @@ let player_data: (Integer, String, Boolean) = (1, "Ryu", true);
 
 // They can be destructured with `let`.
 let (id, name, isActive) = player_data;
-writeln(strFormat("Player {?} (ID: {?}) is active: {?}.", name, id, isActive));
+writeln($"Player {name} (ID: {id}) is active: {isActive}.");
 
 // Native string interpolation simplifies formatting strings.
 writeln("\n--- String Interpolation ---");
@@ -109,11 +109,11 @@ let safe_divide = fn(a: Integer, b: Integer) -> Result<Integer, String> {
 
 // We use `match` to handle both possibilities safely.
 match safe_divide(10, 2) {
-  Ok(result) => writeln("10 / 2 is {?}.", result),
-  Err(msg) => writeln("Error: {?}", msg)
+  Ok(result) => writeln($"10 / 2 is {result}."),
+  Err(msg) => writeln($"Error: {msg}")
 };
 
 match safe_divide(10, 0) {
-  Ok(result) => writeln("10 / 0 is {?}.", result),
-  Err(msg) => writeln("Error from division by zero: {?}", msg)
+  Ok(result) => writeln($"10 / 0 is {result}."),
+  Err(msg) => writeln($"Error from division by zero: {msg}")
 };

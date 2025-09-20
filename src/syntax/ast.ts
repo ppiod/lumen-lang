@@ -797,3 +797,20 @@ export class InterpolatedStringLiteral implements Expression {
     return `$"${partsStr}"`;
   }
 }
+
+export class ActivePatternDeclarationStatement implements Statement {
+  constructor(
+    public token: Token,
+    public cases: Identifier[],
+    public patternFunction: FunctionLiteral,
+  ) {}
+
+  public statementNode() {}
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+  public toString(): string {
+    const cases = this.cases.map((c) => c.toString()).join(' | ');
+    return `let (|${cases}|) = ${this.patternFunction.toString()};`;
+  }
+}

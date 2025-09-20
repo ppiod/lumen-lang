@@ -18,6 +18,16 @@ const makeUnaryMathBuiltin = (mathFn: (n: number) => number) => {
   });
 };
 
+const makeUnaryMathToIntBuiltin = (mathFn: (n: number) => number) => {
+  return new LumenBuiltin((loader, ...args) => {
+    if (args.length !== 1 || !(args[0] instanceof LumenDouble)) {
+      return new LumenError(`Expected 1 Double argument.`);
+    }
+    const result = mathFn(args[0].value);
+    return new LumenInteger(result);
+  });
+};
+
 const makeBinaryMathBuiltin = (mathFn: (a: number, b: number) => number) => {
   return new LumenBuiltin((loader, ...args) => {
     if (
@@ -44,9 +54,9 @@ export const math: NativeModule = {
     ['cos', makeUnaryMathBuiltin(Math.cos)],
     ['tan', makeUnaryMathBuiltin(Math.tan)],
     ['log', makeUnaryMathBuiltin(Math.log)],
-    ['floor', makeUnaryMathBuiltin(Math.floor)],
-    ['ceil', makeUnaryMathBuiltin(Math.ceil)],
-    ['round', makeUnaryMathBuiltin(Math.round)],
+    ['floor', makeUnaryMathToIntBuiltin(Math.floor)],
+    ['ceil', makeUnaryMathToIntBuiltin(Math.ceil)],
+    ['round', makeUnaryMathToIntBuiltin(Math.round)],
     ['pow', makeBinaryMathBuiltin(Math.pow)],
     ['min', makeBinaryMathBuiltin(Math.min)],
     ['max', makeBinaryMathBuiltin(Math.max)],

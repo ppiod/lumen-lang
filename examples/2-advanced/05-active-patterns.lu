@@ -1,0 +1,54 @@
+/**
+ * Active Patterns Showcase
+ * * This file demonstrates a powerful feature called Active Patterns.
+ * They allow you to extend pattern matching with custom classification logic,
+ * making your code more readable and declarative.
+ */
+
+/**
+ * Step 1: Declare a SumType that matches the Active Pattern cases.
+ *
+ * An Active Pattern must be backed by an explicit SumType. This is crucial
+ * for type safety, as it allows the compiler to understand all the possible
+
+ * outcomes of the pattern and check for exhaustiveness in `match` expressions.
+ */
+type NumberKind =
+  | Zero()
+  | Even(Integer)
+  | Odd()
+
+/**
+ * Step 2: Define the Active Pattern function.
+ *
+ * This is a regular function that takes an input and returns one of the variants
+ * of our `NumberKind` SumType. The special `let (|...|)` syntax registers this
+ * function as an Active Pattern, making its cases available to `match` expressions.
+ */
+let (|Zero|Even|Odd|) = fn(n: Integer) -> NumberKind {
+  when {
+    | (n == 0) => Zero(),
+    | (n % 2 == 0) => Even(n),
+    else => Odd()
+  }
+}
+
+/**
+ * Step 3: Use the Active Pattern in a `match` expression.
+ *
+ * The `match` expression becomes incredibly clean. It expresses the intent
+ * ("what to do when the number is Even") rather than the implementation details
+ * (`n % 2 == 0`). The compiler uses the SumType to ensure all cases are
+ * handled and that the types of captured variables (like `num`) are correct.
+ */
+let describe = fn(n: Integer) -> String {
+  match n {
+    Zero() => "Zero",
+    Even(num) => $"An even number: {num}",
+    Odd() => "An odd number"
+  }
+}
+
+writeln(describe(10)) // An even number: 10
+writeln(describe(7))  // An odd number
+writeln(describe(0))  // Zero

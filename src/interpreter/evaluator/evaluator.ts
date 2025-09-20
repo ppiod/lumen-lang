@@ -528,6 +528,13 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
 
     return new LumenError('unsupported pattern in let statement', node.name);
   }
+  if (node instanceof ast.ActivePatternDeclarationStatement) {
+    const func = new LumenFunction(node.patternFunction.parameters, node.patternFunction.body, env);
+    for (const caseIdent of node.cases) {
+      env.setActivePattern(caseIdent.value, func);
+    }
+    return NULL;
+  }
   if (node instanceof ast.Identifier) return evalIdentifier(node, env);
   if (node instanceof ast.IntegerLiteral) return new LumenInteger(node.value);
   if (node instanceof ast.DoubleLiteral) return new LumenDouble(node.value);
@@ -851,16 +858,33 @@ function evalMatchExpression(
 
     if (arm.pattern instanceof ast.WildcardPattern) {
       isMatch = true;
-    } else if (arm.pattern instanceof ast.VariantPattern && value instanceof LumenSumTypeInstance) {
+    } else if (arm.pattern instanceof ast.VariantPattern) {
       const pattern = arm.pattern;
-      if (
-        value.variantName === pattern.path.value &&
-        value.values.length === pattern.parameters.length
-      ) {
-        isMatch = true;
-        pattern.parameters.forEach((param, i) => {
-          armEnv.set(param.value, value.values[i], true);
-        });
+      const caseName = pattern.path.value;
+
+      const activePatternFunc = env.getActivePattern(caseName);
+      if (activePatternFunc) {
+        const result = applyFunction(activePatternFunc, [value], loader);
+
+        if (result instanceof LumenSumTypeInstance && result.variantName === caseName) {
+           if (result.values.length === pattern.parameters.length) {
+                isMatch = true;
+                pattern.parameters.forEach((param, i) => {
+                    armEnv.set(param.value, result.values[i], true);
+                });
+           }
+        }
+
+      } else if (value instanceof LumenSumTypeInstance) {
+        if (
+          value.variantName === caseName &&
+          value.values.length === pattern.parameters.length
+        ) {
+          isMatch = true;
+          pattern.parameters.forEach((param, i) => {
+            armEnv.set(param.value, value.values[i], true);
+          });
+        }
       }
     } else if (arm.pattern instanceof ast.ArrayPattern && value instanceof LumenArray) {
       const pattern = arm.pattern;
