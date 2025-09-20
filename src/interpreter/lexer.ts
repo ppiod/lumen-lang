@@ -7,6 +7,7 @@ export class Lexer {
   private ch: string | null;
   private line: number;
   private column: number;
+  private interpolationStack: ('string' | 'expression')[] = [];
 
   constructor(input: string) {
     this.input = input;
@@ -55,8 +56,14 @@ export class Lexer {
       this.readChar();
     }
   }
-
+  
   public nextToken(): Token {
+    const currentState = this.interpolationStack[this.interpolationStack.length - 1];
+
+    if (currentState === 'string') {
+      return this.lexInString();
+    }
+
     this.skipWhitespace();
 
     if (this.ch === null) {
@@ -65,10 +72,24 @@ export class Lexer {
 
     const startLine = this.line;
     const startCol = this.column;
-
     const createToken = (type: TokenType, literal: string): Token => {
       return { type, literal, line: startLine, column: startCol };
     };
+
+    if (this.ch === '$' && this.peekChar() === '"') {
+      this.readChar();
+      this.readChar();
+      this.interpolationStack.push('string');
+      return createToken(TokenType.INTERPOLATION_START, '$"');
+    }
+
+    if (this.ch === '}') {
+      if (currentState === 'expression') {
+        this.interpolationStack.pop();
+        this.readChar();
+        return createToken(TokenType.RBRACE, '}');
+      }
+    }
 
     if (this.ch === '/') {
       if (this.peekChar() === '/') {
@@ -135,6 +156,12 @@ export class Lexer {
 
     if (this.ch !== null && singleCharOperators.has(this.ch)) {
       const char = this.ch;
+      if (char === '{') {
+        const state = this.interpolationStack[this.interpolationStack.length - 1];
+        if (state === 'string') {
+          this.interpolationStack.push('expression');
+        }
+      }
       this.readChar();
       return createToken(singleCharOperators.get(char)!, char);
     }
@@ -164,6 +191,38 @@ export class Lexer {
     const illegalToken = createToken(TokenType.ILLEGAL, this.ch);
     this.readChar();
     return illegalToken;
+  }
+  
+  private lexInString(): Token {
+    const startLine = this.line;
+    const startCol = this.column;
+    const createToken = (type: TokenType, literal: string): Token => {
+      return { type, literal, line: startLine, column: startCol };
+    };
+
+    let literal = '';
+    while (this.ch !== null && this.ch !== '"' && this.ch !== '{') {
+      literal += this.ch;
+      this.readChar();
+    }
+
+    if (literal.length > 0) {
+      return createToken(TokenType.INTERPOLATION_LITERAL, literal);
+    }
+
+    if (this.ch === '{') {
+        this.interpolationStack.push('expression');
+        this.readChar();
+        return createToken(TokenType.LBRACE, '{');
+    }
+
+    if (this.ch === '"') {
+      this.interpolationStack.pop();
+      this.readChar();
+      return createToken(TokenType.STRING, '"');
+    }
+
+    return createToken(TokenType.EOF, '');
   }
 
   private readMultiLineString(): string {

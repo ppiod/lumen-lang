@@ -105,6 +105,18 @@ export function check(
   if (node instanceof ast.StringLiteral) return STRING_TYPE;
   if (node instanceof ast.TupleLiteral) return checkTupleLiteral(node, env, loader, expectedType);
 
+  if (node instanceof ast.InterpolatedStringLiteral) {
+    for (const part of node.parts) {
+      if (!(part instanceof ast.StringLiteral)) {
+        const partType = check(part, env, loader);
+        if (partType.kind() === TypeKind.ERROR) {
+          return partType;
+        }
+      }
+    }
+    return STRING_TYPE;
+  }
+
   if (node instanceof ast.FunctionLiteral)
     return checkFunctionLiteral(node, env, loader, undefined, expectedType);
   if (node instanceof ast.ArrayLiteral) return checkArrayLiteral(node, env, loader, expectedType);

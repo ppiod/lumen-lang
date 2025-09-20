@@ -49,6 +49,7 @@ import {
   WhenExpressionBranch,
   TupleLiteral,
   TupleTypeNode,
+  InterpolatedStringLiteral,
 } from '@syntax/ast.js';
 
 enum Precedence {
@@ -114,6 +115,7 @@ export class Parser {
     this.registerPrefix(TokenType.IDENT, this.parseIdentifier.bind(this));
     this.registerPrefix(TokenType.MATCH, this.parseMatchExpression.bind(this));
     this.prefixParseFns[TokenType.WHEN] = this.parseWhenExpression.bind(this);
+    this.registerPrefix(TokenType.INTERPOLATION_START, this.parseInterpolatedStringLiteral.bind(this));
     this.registerPrefix(TokenType.INT, this.parseIntegerLiteral.bind(this));
     this.registerPrefix(TokenType.DOUBLE, this.parseDoubleLiteral.bind(this));
     this.registerPrefix(TokenType.STRING, this.parseStringLiteral.bind(this));
@@ -683,6 +685,41 @@ export class Parser {
       return undefined;
     }
     return new IntegerLiteral(token, value);
+  }
+
+  private parseInterpolatedStringLiteral(): Expression | undefined {
+    const startToken = this.curToken;
+    const parts: (StringLiteral | Expression)[] = [];
+
+    while (!this.peekTokenIs(TokenType.STRING)) {
+      this.nextToken();
+
+      if (this.curTokenIs(TokenType.EOF)) {
+        this.errors.push('Unterminated interpolated string');
+        return undefined;
+      }
+
+      if (this.curTokenIs(TokenType.INTERPOLATION_LITERAL)) {
+        parts.push(new StringLiteral(this.curToken, this.curToken.literal));
+      } else if (this.curTokenIs(TokenType.LBRACE)) {
+        this.nextToken();
+        const expression = this.parseExpression(Precedence.LOWEST);
+        if (!expression) {
+          return undefined;
+        }
+        parts.push(expression);
+        if (!this.expectPeek(TokenType.RBRACE)) {
+          this.errors.push('Expected "}" to close expression in interpolated string.');
+          return undefined;
+        }
+      }
+    }
+
+    if (!this.expectPeek(TokenType.STRING)) {
+      return undefined;
+    }
+
+    return new InterpolatedStringLiteral(startToken, parts);
   }
 
   private parseDoubleLiteral(): Expression | undefined {

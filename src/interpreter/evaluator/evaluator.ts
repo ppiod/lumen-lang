@@ -533,6 +533,21 @@ export function Eval(node: ast.Node, env: Environment, loader: ModuleLoader): Lu
   if (node instanceof ast.DoubleLiteral) return new LumenDouble(node.value);
   if (node instanceof ast.BooleanLiteral) return nativeBoolToBooleanObject(node.value);
   if (node instanceof ast.StringLiteral) return new LumenString(node.value);
+  if (node instanceof ast.InterpolatedStringLiteral) {
+    let finalString = '';
+    for (const part of node.parts) {
+      if (part instanceof ast.StringLiteral) {
+        finalString += part.value;
+      } else {
+        const evaluatedPart = Eval(part, env, loader);
+        if (evaluatedPart instanceof LumenError) {
+          return evaluatedPart;
+        }
+        finalString += evaluatedPart.inspect();
+      }
+    }
+    return new LumenString(finalString);
+  }
   if (node instanceof ast.TupleLiteral) {
     const elements = evalExpressions(node.elements, env, loader);
     if (elements.length === 1 && elements[0] instanceof LumenError) return elements[0];

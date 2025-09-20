@@ -88,6 +88,13 @@ let player_data: (Integer, String, Boolean) = (1, "Ryu", true);
 let (id, name, isActive) = player_data;
 writeln(strFormat("Player {?} (ID: {?}) is active: {?}.", name, id, isActive));
 
+// Native string interpolation simplifies formatting strings.
+writeln("\n--- String Interpolation ---");
+let heroDescription = $"Our hero, {hero.name}, has reached level {hero.level}!";
+writeln(heroDescription);
+// Combines interpolation with tuple destructuring
+let playerDataString = $"Player {name} (ID: {id}) is active: {isActive}.";
+writeln(playerDataString);
 
 // The `Result` type is used for operations that can fail.
 // It can be either `Ok(value)` for success or `Err(message)` for failure.

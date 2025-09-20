@@ -776,3 +776,24 @@ export class TupleTypeNode implements TypeNode {
     return `(${types})`;
   }
 }
+
+export class InterpolatedStringLiteral implements Expression {
+  constructor(
+    public token: Token,
+    public parts: (StringLiteral | Expression)[], 
+  ) {}
+
+  public expressionNode() {}
+  public tokenLiteral(): string {
+    return this.token.literal;
+  }
+  public toString(): string {
+    const partsStr = this.parts.map(p => {
+        if (p instanceof StringLiteral) {
+            return p.value;
+        }
+        return `\${${p.toString()}}`;
+    }).join('');
+    return `$"${partsStr}"`;
+  }
+}

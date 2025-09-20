@@ -69,6 +69,9 @@ export enum TokenType {
   EXPOSING = 'EXPOSING',
   USE = 'USE',
   AS = 'AS',
+
+  INTERPOLATION_START = 'INTERPOLATION_START',
+  INTERPOLATION_LITERAL = 'INTERPOLATION_LITERAL',
 }
 
 export interface Token {
